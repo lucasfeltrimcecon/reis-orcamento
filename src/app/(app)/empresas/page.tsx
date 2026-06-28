@@ -78,9 +78,15 @@ export default async function EmpresasPage() {
                       </Link>
                       <Link
                         href={`/empresas/${e.id}/orcamento`}
-                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--action)] transition hover:border-[var(--action)]"
+                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--muted)] transition hover:border-[var(--action)] hover:text-[var(--action)]"
                       >
                         Orçamento
+                      </Link>
+                      <Link
+                        href={`/empresas/${e.id}/realizado`}
+                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--action)] transition hover:border-[var(--action)]"
+                      >
+                        Realizado
                       </Link>
                     </div>
                   </td>

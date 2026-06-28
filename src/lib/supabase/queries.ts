@@ -76,3 +76,41 @@ export async function getOrcamento(
     return { area, valores, total: valores.reduce((s, v) => s + v, 0) };
   });
 }
+
+export type RealizadoResumo = {
+  totalReceita: number;
+  totalDespesa: number;
+  qtdLinhas: number;
+  ultimaImportacao: string | null;
+};
+
+export async function getRealizadoResumo(
+  empresaId: string,
+  ano: number,
+): Promise<RealizadoResumo> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("realizado")
+    .select("valor, tipo, importado_em")
+    .eq("empresa_id", empresaId)
+    .eq("ano", ano);
+
+  if (error) throw new Error(error.message);
+
+  let totalReceita = 0;
+  let totalDespesa = 0;
+  let ultima: string | null = null;
+  for (const r of data ?? []) {
+    const v = Number(r.valor);
+    if (r.tipo === "receita") totalReceita += v;
+    else totalDespesa += v;
+    if (!ultima || r.importado_em > ultima) ultima = r.importado_em;
+  }
+
+  return {
+    totalReceita,
+    totalDespesa,
+    qtdLinhas: data?.length ?? 0,
+    ultimaImportacao: ultima,
+  };
+}

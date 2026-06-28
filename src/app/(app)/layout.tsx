@@ -17,6 +17,12 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  // Autorização: só papel master acessa a área administrativa na V1.
+  const { data: isMaster } = await supabase.rpc("is_master");
+  if (!isMaster) {
+    redirect("/login");
+  }
+
   const emailIniciais = (user.email ?? "?")
     .split("@")[0]
     .slice(0, 2)

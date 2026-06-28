@@ -2,9 +2,12 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { importarOrcamentoXlsx, type ImportState } from "../actions";
+import {
+  importarRealizadoXlsx,
+  type ImportRealizadoState,
+} from "../actions";
 
-const initial: ImportState = {};
+const initial: ImportRealizadoState = {};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -19,14 +22,14 @@ function SubmitButton() {
   );
 }
 
-export function ImportarForm({
+export function ImportarRealizadoForm({
   empresaId,
   ano,
 }: {
   empresaId: string;
   ano: number;
 }) {
-  const [state, formAction] = useActionState(importarOrcamentoXlsx, initial);
+  const [state, formAction] = useActionState(importarRealizadoXlsx, initial);
 
   return (
     <form action={formAction} className="mt-6 max-w-xl space-y-4">
@@ -48,7 +51,7 @@ export function ImportarForm({
           Clique para escolher a planilha (.xlsx)
         </span>
         <span className="text-xs text-[var(--muted)]">
-          Formato: coluna Área + colunas Jan a Dez
+          Formato: Tipo · Área · Descrição · Jan a Dez
         </span>
         <input
           type="file"
@@ -66,8 +69,8 @@ export function ImportarForm({
       )}
 
       <div className="rounded-lg bg-[#fdf4e3] px-3.5 py-2.5 text-xs font-semibold text-[#b8780c]">
-        ⚠ Importar <b>substitui todo o orçamento de {ano}</b> (reescrita completa).
-        Use uma planilha com <b>todas</b> as áreas — comece pelo modelo abaixo.
+        ⚠ Importar vai <b>substituir</b> todo o realizado de {ano} (reescrita
+        completa do ano).
       </div>
 
       <SubmitButton />
