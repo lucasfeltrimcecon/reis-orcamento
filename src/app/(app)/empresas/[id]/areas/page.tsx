@@ -25,13 +25,23 @@ export default async function AreasPage({
       >
         ← Empresas
       </Link>
-      <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-[var(--navy)]">
-        {empresa.nome}
-      </h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Áreas (centros de custo). Devem bater com o centro de custo do Conta Azul
-        para o realizado cruzar certo.
-      </p>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--navy)]">
+            {empresa.nome}
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Áreas (centros de custo). Devem bater com o centro de custo do Conta
+            Azul para o realizado cruzar certo.
+          </p>
+        </div>
+        <Link
+          href={`/empresas/${empresa.id}/orcamento`}
+          className="rounded-xl bg-[var(--action)] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98]"
+        >
+          Ir para o orçamento →
+        </Link>
+      </div>
 
       {/* Adicionar área */}
       <form

@@ -17,3 +17,9 @@ export type Area = {
 export type EmpresaComContagem = Empresa & {
   total_areas: number;
 };
+
+export type OrcamentoArea = {
+  area: Area;
+  valores: number[]; // 12 posições, Jan..Dez
+  total: number;
+};

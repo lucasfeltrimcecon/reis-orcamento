@@ -69,12 +69,20 @@ export default async function EmpresasPage() {
                     {e.total_areas} área{e.total_areas === 1 ? "" : "s"}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <Link
-                      href={`/empresas/${e.id}/areas`}
-                      className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--action)] transition hover:border-[var(--action)]"
-                    >
-                      Gerenciar áreas
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/empresas/${e.id}/areas`}
+                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--muted)] transition hover:border-[var(--action)] hover:text-[var(--action)]"
+                      >
+                        Áreas
+                      </Link>
+                      <Link
+                        href={`/empresas/${e.id}/orcamento`}
+                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--action)] transition hover:border-[var(--action)]"
+                      >
+                        Orçamento
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
