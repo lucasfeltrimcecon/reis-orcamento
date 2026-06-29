@@ -3,6 +3,7 @@ import { listEmpresas } from "@/lib/supabase/queries";
 import { getPainel, type Modo } from "@/lib/dashboard";
 import { fmtBRL, MESES_ABREV } from "@/lib/meses";
 import { PainelGauges } from "./PainelGauges";
+import { EmpresaSelect } from "./EmpresaSelect";
 
 export const metadata = { title: "Painel · Reis" };
 
@@ -47,8 +48,12 @@ export default async function PainelPage({
       ? sp.empresa
       : empresas[0].id;
   const empresa = empresas.find((e) => e.id === empresaId)!;
-  const ano = Number(sp.ano) || 2026;
-  const mesRef = Math.min(Math.max(Number(sp.mes) || 12, 1), 12);
+  const hoje = new Date();
+  const ano = Number(sp.ano) || hoje.getFullYear();
+  const mesRef = Math.min(
+    Math.max(Number(sp.mes) || hoje.getMonth() + 1, 1),
+    12,
+  );
   const modo: Modo = sp.modo === "mes" ? "mes" : "acumulado";
 
   const d = await getPainel(empresaId, ano, mesRef, modo);
@@ -68,46 +73,39 @@ export default async function PainelPage({
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--navy)]">
-            Painel — {empresa.nome}
-          </h1>
-          <p className="text-sm text-[var(--muted)]">
-            {modo === "mes"
-              ? `${MESES_ABREV[mesRef - 1]}/${ano}`
-              : `Acumulado até ${MESES_ABREV[mesRef - 1]}/${ano}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {empresas.length > 1 &&
-            empresas.map((e) => (
-              <Link
-                key={e.id}
-                href={base({ empresa: e.id })}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  e.id === empresaId
-                    ? "bg-[var(--navy)] text-white"
-                    : "bg-white text-[var(--muted)] border border-[var(--border)] hover:text-[var(--navy)]"
-                }`}
-              >
-                {e.nome}
-              </Link>
-            ))}
-          <div className="inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
-            <Link
-              href={base({ modo: "mes" })}
-              className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${modo === "mes" ? "bg-[var(--navy)] text-white" : "text-[var(--muted)]"}`}
-            >
-              Mês
-            </Link>
-            <Link
-              href={base({ modo: "acumulado" })}
-              className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${modo === "acumulado" ? "bg-[var(--navy)] text-white" : "text-[var(--muted)]"}`}
-            >
-              Acumulado
-            </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <EmpresaSelect
+            empresas={empresas}
+            value={empresaId}
+            ano={ano}
+            mes={mesRef}
+            modo={modo}
+          />
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
+              Painel
+            </p>
+            <p className="text-sm font-semibold text-[var(--navy)]">
+              {modo === "mes"
+                ? `${MESES_ABREV[mesRef - 1]}/${ano}`
+                : `Acumulado até ${MESES_ABREV[mesRef - 1]}/${ano}`}
+            </p>
           </div>
+        </div>
+        <div className="inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
+          <Link
+            href={base({ modo: "mes" })}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${modo === "mes" ? "bg-[var(--navy)] text-white" : "text-[var(--muted)]"}`}
+          >
+            Mês
+          </Link>
+          <Link
+            href={base({ modo: "acumulado" })}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${modo === "acumulado" ? "bg-[var(--navy)] text-white" : "text-[var(--muted)]"}`}
+          >
+            Acumulado
+          </Link>
         </div>
       </div>
 

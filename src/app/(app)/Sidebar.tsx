@@ -1,0 +1,176 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { signOut } from "@/app/login/actions";
+
+type Item = { href: string; label: string; icon: React.ReactNode };
+
+// Agrupado por seção para facilitar a expansão futura do sistema.
+const SECOES: { titulo: string; itens: Item[] }[] = [
+  {
+    titulo: "Visão geral",
+    itens: [{ href: "/painel", label: "Painel", icon: <IconePainel /> }],
+  },
+  {
+    titulo: "Cadastros",
+    itens: [{ href: "/empresas", label: "Empresas", icon: <IconeEmpresa /> }],
+  },
+];
+
+export function Sidebar({
+  email,
+  iniciais,
+}: {
+  email: string;
+  iniciais: string;
+}) {
+  const pathname = usePathname();
+  const [aberto, setAberto] = useState(false);
+
+  const ativo = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
+
+  return (
+    <>
+      {/* Barra superior — só no mobile */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3 lg:hidden">
+        <button
+          onClick={() => setAberto(true)}
+          aria-label="Abrir menu"
+          className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--border)] text-[var(--navy)]"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+        <Marca />
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-[#e8f1f9] text-xs font-extrabold text-[var(--action)]">
+          {iniciais}
+        </span>
+      </div>
+
+      {/* Fundo escuro no mobile quando o menu está aberto */}
+      {aberto && (
+        <div
+          className="fixed inset-0 z-40 bg-[#040c1c66] lg:hidden"
+          onClick={() => setAberto(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--border)] bg-white transition-transform duration-200 lg:translate-x-0 ${
+          aberto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+          <Marca />
+          <button
+            onClick={() => setAberto(false)}
+            aria-label="Fechar menu"
+            className="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] lg:hidden"
+          >
+            ✕
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+          {SECOES.map((s) => (
+            <div key={s.titulo}>
+              <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                {s.titulo}
+              </p>
+              <div className="space-y-0.5">
+                {s.itens.map((it) => {
+                  const on = ativo(it.href);
+                  return (
+                    <Link
+                      key={it.href}
+                      href={it.href}
+                      onClick={() => setAberto(false)}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+                        on
+                          ? "bg-[var(--navy)] text-white shadow-sm"
+                          : "text-[var(--muted)] hover:bg-[var(--background)] hover:text-[var(--navy)]"
+                      }`}
+                    >
+                      <span className={on ? "text-white" : "text-[var(--action)]"}>
+                        {it.icon}
+                      </span>
+                      {it.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Usuário + sair */}
+        <div className="border-t border-[var(--border)] px-3 py-3">
+          <div className="flex items-center gap-3 px-2 py-1">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#e8f1f9] text-xs font-extrabold text-[var(--action)]">
+              {iniciais}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-[var(--foreground)]">
+                {email}
+              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Master
+              </p>
+            </div>
+          </div>
+          <form action={signOut} className="mt-2">
+            <button
+              type="submit"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-bold text-[var(--muted)] transition hover:border-[var(--red)] hover:text-[var(--red)]"
+            >
+              Sair
+            </button>
+          </form>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function Marca() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--navy)] text-base font-extrabold text-white">
+        R
+      </span>
+      <span>
+        <span className="block text-sm font-bold leading-tight text-[var(--navy)]">
+          Controle Orçamentário
+        </span>
+        <span className="block text-[11px] font-semibold text-[var(--muted)]">
+          Reis Aceleradora
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function IconePainel() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21a9 9 0 1 1 9-9" />
+      <path d="M12 12l4-3" />
+    </svg>
+  );
+}
+
+function IconeEmpresa() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" />
+      <path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
+      <path d="M15 9h3a1 1 0 0 1 1 1v11" />
+      <path d="M8 8h2M8 12h2M8 16h2" />
+    </svg>
+  );
+}

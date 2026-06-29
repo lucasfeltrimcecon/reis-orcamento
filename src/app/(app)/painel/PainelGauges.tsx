@@ -5,21 +5,26 @@ import type { GaugeArea, LinhaDetalhe, Modo } from "@/lib/dashboard";
 import { fmtBRL, fmtNum } from "@/lib/meses";
 import { carregarDetalhesArea } from "./actions";
 
-const R = 68;
+// Geometria do arco (em unidades do viewBox). O SVG escala com o card.
+const R = 80;
+const CX = 95;
+const CY = 92;
 const ARC_LEN = Math.PI * R;
+const ARC_PATH = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
 
 function Gauge({ g }: { g: GaugeArea }) {
   const frac = g.orcado > 0 ? Math.min(g.realizado / g.orcado, 1) : 1;
   const stroke = g.cor === "r" ? "var(--red)" : "var(--yellow)";
-  const path = `M ${85 - R} 86 A ${R} ${R} 0 0 1 ${85 + R} 86`;
   const corClasse = g.cor === "r" ? "text-[var(--red)]" : "text-[var(--yellow)]";
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-[var(--navy)]">{g.nome}</span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-sm font-bold leading-tight text-[var(--navy)]">
+          {g.nome}
+        </span>
         {g.execPct !== null && (
-          <span className={`text-sm font-extrabold tabular-nums ${corClasse}`}>
+          <span className={`shrink-0 text-sm font-extrabold tabular-nums ${corClasse}`}>
             {g.execPct.toLocaleString("pt-BR", {
               minimumFractionDigits: 1,
               maximumFractionDigits: 1,
@@ -28,40 +33,50 @@ function Gauge({ g }: { g: GaugeArea }) {
           </span>
         )}
       </div>
-      <div className="relative mx-auto mt-1" style={{ width: 170, height: 96 }}>
-        <svg viewBox="0 0 170 96" width="170" height="96">
+
+      <div
+        className="relative mx-auto mt-3 w-full max-w-[240px]"
+        style={{ containerType: "inline-size" }}
+      >
+        <svg viewBox="0 0 190 104" className="w-full" preserveAspectRatio="xMidYMid meet">
           <path
-            d={path}
+            d={ARC_PATH}
             fill="none"
             stroke="var(--border)"
-            strokeWidth={15}
+            strokeWidth={16}
             strokeLinecap="round"
             opacity={0.5}
           />
           <path
-            d={path}
+            d={ARC_PATH}
             fill="none"
             stroke={stroke}
-            strokeWidth={15}
+            strokeWidth={16}
             strokeLinecap="round"
             strokeDasharray={`${frac * ARC_LEN} ${ARC_LEN}`}
           />
-          <circle cx={85 + R} cy={86} r={3.5} fill="var(--navy)" />
+          <circle cx={CX + R} cy={CY} r={4} fill="var(--navy)" />
         </svg>
-        <div className="absolute inset-x-0 bottom-1.5 text-center">
-          <div className={`text-lg font-extrabold tabular-nums ${corClasse}`}>
+        {/* Valor realizado centralizado dentro do arco */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center pt-5">
+          <span
+            className={`px-2 text-center text-[clamp(0.9rem,9cqw,1.5rem)] font-extrabold leading-none tabular-nums ${corClasse}`}
+          >
             {fmtBRL(g.realizado)}
-          </div>
-          {g.naoPlanejado ? (
-            <div className="text-[11px] font-bold text-[var(--red)]">
-              não planejado
-            </div>
-          ) : (
-            <div className="text-[11px] font-semibold text-[var(--muted)] tabular-nums">
-              orçado {fmtBRL(g.orcado)}
-            </div>
-          )}
+          </span>
         </div>
+      </div>
+
+      <div className="mt-2 text-center">
+        {g.naoPlanejado ? (
+          <span className="text-[11px] font-bold text-[var(--red)]">
+            não planejado
+          </span>
+        ) : (
+          <span className="text-[11px] font-semibold text-[var(--muted)] tabular-nums">
+            orçado {fmtBRL(g.orcado)}
+          </span>
+        )}
       </div>
     </>
   );
@@ -106,7 +121,7 @@ export function PainelGauges({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {areas.map((g) => (
           <button
             key={g.areaId}
