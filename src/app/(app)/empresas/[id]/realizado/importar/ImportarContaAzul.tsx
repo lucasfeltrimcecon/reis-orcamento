@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { Dropdown } from "@/components/Dropdown";
 import { fmtBRL, MESES_NOME } from "@/lib/meses";
 import {
   analisarContaAzul,
@@ -248,33 +249,27 @@ export function ImportarContaAzul({
           <label className="mb-1 block text-xs font-bold text-[var(--foreground)]">
             Mês
           </label>
-          <select
-            value={mes}
-            onChange={(e) => setMes(Number(e.target.value))}
-            className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm font-semibold"
-          >
-            {MESES_NOME.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            size="sm"
+            ariaLabel="Mês"
+            className="w-44"
+            value={String(mes)}
+            options={MESES_NOME.map((m, i) => ({ value: String(i + 1), label: m }))}
+            onChange={(v) => setMes(Number(v))}
+          />
         </div>
         <div>
           <label className="mb-1 block text-xs font-bold text-[var(--foreground)]">
             Ano
           </label>
-          <select
-            value={ano}
-            onChange={(e) => setAno(Number(e.target.value))}
-            className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm font-semibold"
-          >
-            {ANOS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            size="sm"
+            ariaLabel="Ano"
+            className="w-28"
+            value={String(ano)}
+            options={ANOS.map((a) => ({ value: String(a), label: String(a) }))}
+            onChange={(v) => setAno(Number(v))}
+          />
         </div>
       </div>
 

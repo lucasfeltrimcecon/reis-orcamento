@@ -40,7 +40,7 @@ function acharColuna(header: unknown[], alvo: string): number {
  * Lê um export do Conta Azul (Contas a Pagar / a Receber).
  * - Categoria: "Categoria 1".
  * - Valor da RECEITA: "Valor recebido da parcela (R$)" (o que de fato entrou).
- * - Valor da DESPESA: "Valor na Categoria 1" (respeita o rateio por centro de custo).
+ * - Valor da DESPESA: "Valor pago da parcela (R$)" (o que de fato saiu).
  * - Área (só despesa): "Centro de Custo 1".
  * Agrega por categoria. Valores em módulo. Sem categoria -> "Sem categoria".
  */
@@ -66,22 +66,18 @@ export function parseContaAzul(
   const catIdx = acharColuna(header, "Categoria 1");
   const ccIdx = acharColuna(header, "Centro de Custo 1");
 
-  // Receita: usa o valor efetivamente recebido (não o "Valor na Categoria 1").
-  let valIdx = -1;
-  if (tipo === "receita") {
-    valIdx = acharColuna(header, "Valor recebido da parcela (R$)");
-    if (valIdx === -1) valIdx = acharColuna(header, "Valor na Categoria 1");
-  } else {
-    valIdx = acharColuna(header, "Valor na Categoria 1");
-  }
+  // Valor efetivamente movimentado (não o "Valor na Categoria 1").
+  const colValor =
+    tipo === "receita"
+      ? "Valor recebido da parcela (R$)"
+      : "Valor pago da parcela (R$)";
+  let valIdx = acharColuna(header, colValor);
+  if (valIdx === -1) valIdx = acharColuna(header, "Valor na Categoria 1");
 
   if (catIdx === -1 || valIdx === -1) {
     return {
       ok: false,
-      erro:
-        tipo === "receita"
-          ? 'Não encontrei as colunas "Categoria 1" e "Valor recebido da parcela (R$)". É um export do Conta Azul?'
-          : 'Não encontrei as colunas "Categoria 1" e "Valor na Categoria 1". É um export do Conta Azul?',
+      erro: `Não encontrei as colunas "Categoria 1" e "${colValor}". É um export do Conta Azul?`,
       itens: [],
     };
   }
