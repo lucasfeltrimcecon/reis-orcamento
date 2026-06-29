@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { fmtBRL, MESES_NOME } from "@/lib/meses";
 import {
@@ -13,47 +12,66 @@ import {
 
 const ANOS = [2025, 2026, 2027];
 
-function ProcessarButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-xl bg-[var(--action)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98] disabled:opacity-60"
-    >
-      {pending ? "Lendo arquivos…" : "Processar arquivos"}
-    </button>
-  );
+// Junta arquivos novos aos já escolhidos, sem duplicar (nome+tamanho).
+function mergeFiles(atual: File[], novos: File[]): File[] {
+  const chave = (f: File) => `${f.name}:${f.size}`;
+  const existentes = new Set(atual.map(chave));
+  return [...atual, ...novos.filter((f) => !existentes.has(chave(f)))];
 }
 
-function Dropzone({ name, label }: { name: string; label: string }) {
-  const [nomes, setNomes] = useState<string[]>([]);
+function Dropzone({
+  label,
+  files,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  files: File[];
+  onAdd: (fs: File[]) => void;
+  onRemove: (idx: number) => void;
+}) {
   return (
-    <label className="flex cursor-pointer flex-col gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-white px-5 py-6 transition hover:border-[var(--action)] hover:bg-[#f4f9fd]">
-      <span className="text-sm font-bold text-[var(--navy)]">{label}</span>
-      <span className="text-xs text-[var(--muted)]">
-        Clique ou arraste — pode selecionar vários
-      </span>
-      <input
-        type="file"
-        name={name}
-        accept=".xls,.xlsx,.csv"
-        multiple
-        onChange={(e) =>
-          setNomes(Array.from(e.target.files ?? []).map((f) => f.name))
-        }
-        className="mt-1 text-xs"
-      />
-      {nomes.length > 0 && (
-        <ul className="mt-1 space-y-0.5">
-          {nomes.map((n) => (
-            <li key={n} className="text-xs font-semibold text-[var(--green)]">
-              ✓ {n}
+    <div className="flex flex-col gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-white px-5 py-6 transition focus-within:border-[var(--action)]">
+      <label className="flex cursor-pointer flex-col gap-2">
+        <span className="text-sm font-bold text-[var(--navy)]">{label}</span>
+        <span className="text-xs text-[var(--muted)]">
+          Clique pra escolher — pode adicionar vários, um de cada vez
+        </span>
+        <input
+          type="file"
+          accept=".xls,.xlsx,.csv"
+          multiple
+          onChange={(e) => {
+            onAdd(Array.from(e.target.files ?? []));
+            // limpa o input p/ permitir re-selecionar e ACUMULAR mais arquivos
+            e.target.value = "";
+          }}
+          className="mt-1 text-xs"
+        />
+      </label>
+      {files.length > 0 && (
+        <ul className="mt-1 space-y-1">
+          {files.map((f, i) => (
+            <li
+              key={`${f.name}-${f.size}-${i}`}
+              className="flex items-center justify-between gap-2 rounded-lg bg-[#f4f9fd] px-2.5 py-1.5"
+            >
+              <span className="truncate text-xs font-semibold text-[var(--green)]">
+                ✓ {f.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                aria-label={`Remover ${f.name}`}
+                className="shrink-0 rounded px-1.5 text-xs font-bold text-[var(--muted)] transition hover:text-[var(--red)]"
+              >
+                ✕
+              </button>
             </li>
           ))}
         </ul>
       )}
-    </label>
+    </div>
   );
 }
 
@@ -66,14 +84,20 @@ export function ImportarContaAzul({
   defaultAno: number;
   defaultMes: number;
 }) {
-  const [analise, analisarAction] = useActionState<AnaliseResult, FormData>(
-    analisarContaAzul,
-    {},
-  );
+  const [analise, analisarAction, analisando] = useActionState<
+    AnaliseResult,
+    FormData
+  >(analisarContaAzul, {});
   const [itens, setItens] = useState<PreviewItem[]>([]);
   const [etapa, setEtapa] = useState<"upload" | "preview" | "done">("upload");
   const [erroConfirm, setErroConfirm] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // ----- estado da etapa de upload (acumula arquivos) -----
+  const [ano, setAno] = useState(defaultAno);
+  const [mes, setMes] = useState(defaultMes);
+  const [receitaFiles, setReceitaFiles] = useState<File[]>([]);
+  const [despesaFiles, setDespesaFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (analise.itens) {
@@ -86,6 +110,16 @@ export function ImportarContaAzul({
     setItens((prev) =>
       prev.map((it, idx) => (idx === i ? { ...it, ignorar: !it.ignorar } : it)),
     );
+  }
+
+  function processar() {
+    const fd = new FormData();
+    fd.set("empresaId", empresaId);
+    fd.set("ano", String(ano));
+    fd.set("mes", String(mes));
+    receitaFiles.forEach((f) => fd.append("receita", f));
+    despesaFiles.forEach((f) => fd.append("despesa", f));
+    analisarAction(fd);
   }
 
   function confirmar() {
@@ -204,18 +238,17 @@ export function ImportarContaAzul({
   }
 
   // ---------- ETAPA: UPLOAD ----------
+  const totalArquivos = receitaFiles.length + despesaFiles.length;
   return (
-    <form action={analisarAction} className="mt-6">
-      <input type="hidden" name="empresaId" value={empresaId} />
-
+    <div className="mt-6">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-bold text-[var(--foreground)]">
             Mês
           </label>
           <select
-            name="mes"
-            defaultValue={defaultMes}
+            value={mes}
+            onChange={(e) => setMes(Number(e.target.value))}
             className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm font-semibold"
           >
             {MESES_NOME.map((m, i) => (
@@ -230,8 +263,8 @@ export function ImportarContaAzul({
             Ano
           </label>
           <select
-            name="ano"
-            defaultValue={defaultAno}
+            value={ano}
+            onChange={(e) => setAno(Number(e.target.value))}
             className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm font-semibold"
           >
             {ANOS.map((a) => (
@@ -244,8 +277,22 @@ export function ImportarContaAzul({
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Dropzone name="receita" label="Receitas (Contas a Receber)" />
-        <Dropzone name="despesa" label="Despesas (Contas a Pagar)" />
+        <Dropzone
+          label="Receitas (Contas a Receber)"
+          files={receitaFiles}
+          onAdd={(fs) => setReceitaFiles((cur) => mergeFiles(cur, fs))}
+          onRemove={(i) =>
+            setReceitaFiles((cur) => cur.filter((_, idx) => idx !== i))
+          }
+        />
+        <Dropzone
+          label="Despesas (Contas a Pagar)"
+          files={despesaFiles}
+          onAdd={(fs) => setDespesaFiles((cur) => mergeFiles(cur, fs))}
+          onRemove={(i) =>
+            setDespesaFiles((cur) => cur.filter((_, idx) => idx !== i))
+          }
+        />
       </div>
 
       {analise.erro && (
@@ -254,10 +301,24 @@ export function ImportarContaAzul({
         </div>
       )}
 
-      <div className="mt-5">
-        <ProcessarButton />
+      <div className="mt-5 flex items-center gap-3">
+        <button
+          onClick={processar}
+          disabled={analisando || totalArquivos === 0}
+          className="rounded-xl bg-[var(--action)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98] disabled:opacity-60"
+        >
+          {analisando
+            ? "Lendo arquivos…"
+            : `Processar ${totalArquivos || ""} arquivo${totalArquivos === 1 ? "" : "s"}`.trim()}
+        </button>
+        {totalArquivos > 0 && (
+          <span className="text-xs text-[var(--muted)]">
+            {receitaFiles.length} receita{receitaFiles.length === 1 ? "" : "s"} ·{" "}
+            {despesaFiles.length} despesa{despesaFiles.length === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
-    </form>
+    </div>
   );
 }
 
