@@ -106,12 +106,6 @@ export function ImportarContaAzul({
     }
   }, [analise]);
 
-  function toggle(i: number) {
-    setItens((prev) =>
-      prev.map((it, idx) => (idx === i ? { ...it, ignorar: !it.ignorar } : it)),
-    );
-  }
-
   function processar() {
     const fd = new FormData();
     fd.set("empresaId", empresaId);
@@ -146,12 +140,22 @@ export function ImportarContaAzul({
         <p className="text-base font-bold text-[var(--navy)]">
           Realizado de {MESES_NOME[(analise.mes ?? 1) - 1]}/{analise.ano} importado!
         </p>
-        <div className="mt-5 flex justify-center gap-2">
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Tudo foi importado. Ajuste o que conta no painel em{" "}
+          <b className="text-[var(--navy)]">Categorias</b>.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Link
             href="/painel"
             className="rounded-xl bg-[var(--action)] px-5 py-2.5 text-sm font-bold text-white"
           >
             Ver no painel →
+          </Link>
+          <Link
+            href={`/empresas/${empresaId}/categorias`}
+            className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-bold text-[var(--action)]"
+          >
+            Categorias
           </Link>
           <Link
             href={`/empresas/${empresaId}/realizado`}
@@ -175,19 +179,19 @@ export function ImportarContaAzul({
       .filter((x) => x.it.tipo === "despesa")
       .sort((a, b) => b.it.valor - a.it.valor);
 
-    const totalRec = receitas.filter((x) => !x.it.ignorar).reduce((s, x) => s + x.it.valor, 0);
-    const totalDesp = despesas.filter((x) => !x.it.ignorar).reduce((s, x) => s + x.it.valor, 0);
+    const totalRec = receitas.reduce((s, x) => s + x.it.valor, 0);
+    const totalDesp = despesas.reduce((s, x) => s + x.it.valor, 0);
 
     return (
       <div className="mt-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-[var(--muted)]">
-            Revise o que entra no painel de{" "}
+            Prévia de{" "}
             <b className="text-[var(--navy)]">
               {MESES_NOME[(analise.mes ?? 1) - 1]}/{analise.ano}
             </b>
-            . Categorias <span className="font-bold text-[var(--action)]">novas</span>{" "}
-            já vêm com uma sugestão — confirme ou ajuste.
+            . <b>Tudo será importado</b> — depois você liga/desliga o que conta
+            no painel em <b className="text-[var(--action)]">Categorias</b>.
           </p>
           <button
             onClick={() => setEtapa("upload")}
@@ -198,19 +202,17 @@ export function ImportarContaAzul({
         </div>
 
         <TabelaPreview
-          titulo="Receitas (entram no Faturou)"
+          titulo="Receitas"
           linhas={receitas}
           total={totalRec}
           mostrarArea={false}
-          onToggle={toggle}
         />
         <div className="h-5" />
         <TabelaPreview
-          titulo="Despesas (relógios por área)"
+          titulo="Despesas"
           linhas={despesas}
           total={totalDesp}
           mostrarArea
-          onToggle={toggle}
         />
 
         {erroConfirm && (
@@ -226,11 +228,11 @@ export function ImportarContaAzul({
             className="rounded-xl bg-[var(--action)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98] disabled:opacity-60"
           >
             {pending
-              ? "Salvando…"
-              : `Confirmar — reescreve ${MESES_NOME[(analise.mes ?? 1) - 1]}/${analise.ano}`}
+              ? "Importando…"
+              : `Importar tudo — reescreve ${MESES_NOME[(analise.mes ?? 1) - 1]}/${analise.ano}`}
           </button>
           <span className="text-xs text-[var(--muted)]">
-            Faturou {fmtBRL(totalRec)} · Gastou {fmtBRL(totalDesp)}
+            Receitas {fmtBRL(totalRec)} · Despesas {fmtBRL(totalDesp)}
           </span>
         </div>
       </div>
@@ -327,20 +329,18 @@ function TabelaPreview({
   linhas,
   total,
   mostrarArea,
-  onToggle,
 }: {
   titulo: string;
   linhas: { it: PreviewItem; i: number }[];
   total: number;
   mostrarArea: boolean;
-  onToggle: (i: number) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-[var(--border)] bg-[#fbfcfe] px-5 py-3">
         <h3 className="text-sm font-bold text-[var(--navy)]">{titulo}</h3>
         <span className="text-xs font-bold text-[var(--muted)] tabular-nums">
-          incluído: {fmtBRL(total)}
+          total: {fmtBRL(total)}
         </span>
       </div>
       {linhas.length === 0 ? (
@@ -350,10 +350,10 @@ function TabelaPreview({
       ) : (
         <table className="w-full text-sm">
           <tbody>
-            {linhas.map(({ it, i }) => (
+            {linhas.map(({ it }) => (
               <tr
                 key={it.categoriaNorm}
-                className={`border-b border-[var(--border)] last:border-0 ${it.ignorar ? "opacity-50" : ""}`}
+                className="border-b border-[var(--border)] last:border-0"
               >
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
@@ -377,17 +377,15 @@ function TabelaPreview({
                   {fmtBRL(it.valor)}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => onToggle(i)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  <span
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
                       it.ignorar
-                        ? "border border-[var(--border)] bg-white text-[var(--muted)]"
+                        ? "bg-[#fdf4e3] text-[#b8780c]"
                         : "bg-[#e7f6ec] text-[#15803d]"
                     }`}
                   >
-                    {it.ignorar ? "Ignorado" : "Incluído"}
-                  </button>
+                    {it.ignorar ? "fora do painel" : "no painel"}
+                  </span>
                 </td>
               </tr>
             ))}

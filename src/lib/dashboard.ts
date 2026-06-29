@@ -30,6 +30,7 @@ type RealRow = {
   mes: number;
   valor: number;
   tipo: "receita" | "despesa";
+  categoria_norm: string | null;
 };
 
 function noPeriodo(mes: number, mesRef: number, modo: Modo): boolean {
@@ -44,7 +45,7 @@ export async function getPainel(
 ): Promise<PainelData> {
   const supabase = await createClient();
 
-  const [{ data: areas }, { data: orcRows }, { data: realRows }] =
+  const [{ data: areas }, { data: orcRows }, { data: realRows }, { data: ignRows }] =
     await Promise.all([
       supabase
         .from("areas")
@@ -59,18 +60,31 @@ export async function getPainel(
         .eq("ano", ano),
       supabase
         .from("realizado")
-        .select("area_id, mes, valor, tipo")
+        .select("area_id, mes, valor, tipo, categoria_norm")
         .eq("empresa_id", empresaId)
         .eq("ano", ano),
+      supabase
+        .from("mapa_categoria")
+        .select("tipo, categoria_norm")
+        .eq("empresa_id", empresaId)
+        .eq("ignorar", true),
     ]);
 
   const orc = (orcRows ?? []) as OrcRow[];
   const real = (realRows ?? []) as RealRow[];
 
+  // Categorias desligadas em "Categorias ativas" não entram no painel.
+  const ignorados = new Set(
+    (ignRows ?? []).map((m) => `${m.tipo}:${m.categoria_norm}`),
+  );
+  const ativo = (r: RealRow) =>
+    !(r.categoria_norm && ignorados.has(`${r.tipo}:${r.categoria_norm}`));
+
   // --- KPIs do período ---
   let faturou = 0;
   let gastou = 0;
   for (const r of real) {
+    if (!ativo(r)) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     if (r.tipo === "receita") faturou += Number(r.valor);
     else gastou += Number(r.valor);
@@ -82,6 +96,7 @@ export async function getPainel(
   let faturouAcum = 0;
   let gastouAcum = 0;
   for (const r of real) {
+    if (!ativo(r)) continue;
     if (r.mes < 1 || r.mes > mesRef) continue;
     if (r.tipo === "receita") faturouAcum += Number(r.valor);
     else gastouAcum += Number(r.valor);
@@ -98,6 +113,7 @@ export async function getPainel(
 
   const realPorArea = new Map<string, number>();
   for (const r of real) {
+    if (!ativo(r)) continue;
     if (r.tipo !== "despesa" || !r.area_id) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     realPorArea.set(
@@ -155,18 +171,30 @@ export async function getDetalhesArea(
   modo: Modo,
 ): Promise<LinhaDetalhe[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("realizado")
-    .select("descricao, valor, mes")
-    .eq("empresa_id", empresaId)
-    .eq("area_id", areaId)
-    .eq("ano", ano)
-    .eq("tipo", "despesa");
+  const [{ data }, { data: ignRows }] = await Promise.all([
+    supabase
+      .from("realizado")
+      .select("descricao, valor, mes, categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("area_id", areaId)
+      .eq("ano", ano)
+      .eq("tipo", "despesa"),
+    supabase
+      .from("mapa_categoria")
+      .select("categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("tipo", "despesa")
+      .eq("ignorar", true),
+  ]);
 
-  // Agrupa por descrição dentro do período
+  const ignorados = new Set((ignRows ?? []).map((m) => m.categoria_norm));
+
+  // Agrupa por descrição dentro do período (pula categorias desligadas)
   const mapa = new Map<string, number>();
   for (const r of data ?? []) {
     if (!noPeriodo(r.mes as number, mesRef, modo)) continue;
+    const cn = r.categoria_norm as string | null;
+    if (cn && ignorados.has(cn)) continue;
     const desc = (r.descricao as string) || "(sem descrição)";
     mapa.set(desc, (mapa.get(desc) ?? 0) + Number(r.valor));
   }

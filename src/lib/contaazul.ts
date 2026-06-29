@@ -38,8 +38,11 @@ function acharColuna(header: unknown[], alvo: string): number {
 
 /**
  * Lê um export do Conta Azul (Contas a Pagar / a Receber).
- * Usa "Categoria 1" + "Valor na Categoria 1"; em despesa, "Centro de Custo 1" = área.
- * Agrega por categoria. Valores tomados em módulo.
+ * - Categoria: "Categoria 1".
+ * - Valor da RECEITA: "Valor recebido da parcela (R$)" (o que de fato entrou).
+ * - Valor da DESPESA: "Valor na Categoria 1" (respeita o rateio por centro de custo).
+ * - Área (só despesa): "Centro de Custo 1".
+ * Agrega por categoria. Valores em módulo. Sem categoria -> "Sem categoria".
  */
 export function parseContaAzul(
   buffer: ArrayBuffer,
@@ -61,13 +64,24 @@ export function parseContaAzul(
 
   const header = rows[0] ?? [];
   const catIdx = acharColuna(header, "Categoria 1");
-  const valIdx = acharColuna(header, "Valor na Categoria 1");
   const ccIdx = acharColuna(header, "Centro de Custo 1");
+
+  // Receita: usa o valor efetivamente recebido (não o "Valor na Categoria 1").
+  let valIdx = -1;
+  if (tipo === "receita") {
+    valIdx = acharColuna(header, "Valor recebido da parcela (R$)");
+    if (valIdx === -1) valIdx = acharColuna(header, "Valor na Categoria 1");
+  } else {
+    valIdx = acharColuna(header, "Valor na Categoria 1");
+  }
 
   if (catIdx === -1 || valIdx === -1) {
     return {
       ok: false,
-      erro: 'Não encontrei as colunas "Categoria 1" e "Valor na Categoria 1". É um export do Conta Azul?',
+      erro:
+        tipo === "receita"
+          ? 'Não encontrei as colunas "Categoria 1" e "Valor recebido da parcela (R$)". É um export do Conta Azul?'
+          : 'Não encontrei as colunas "Categoria 1" e "Valor na Categoria 1". É um export do Conta Azul?',
       itens: [],
     };
   }
@@ -80,9 +94,9 @@ export function parseContaAzul(
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
-    const categoria = String(row[catIdx] ?? "").trim();
+    const categoria = String(row[catIdx] ?? "").trim() || "Sem categoria";
     const valor = Math.abs(toNumber(row[valIdx]));
-    if (!categoria || valor === 0) continue;
+    if (valor === 0) continue;
 
     const k = normalizarTexto(categoria);
     let entry = acc.get(k);

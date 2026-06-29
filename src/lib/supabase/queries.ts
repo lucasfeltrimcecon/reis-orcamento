@@ -90,18 +90,32 @@ export async function getRealizadoResumo(
   ano: number,
 ): Promise<RealizadoResumo> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("realizado")
-    .select("valor, tipo, importado_em")
-    .eq("empresa_id", empresaId)
-    .eq("ano", ano);
+  const [{ data, error }, { data: ignRows }] = await Promise.all([
+    supabase
+      .from("realizado")
+      .select("valor, tipo, importado_em, categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("ano", ano),
+    supabase
+      .from("mapa_categoria")
+      .select("tipo, categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("ignorar", true),
+  ]);
 
   if (error) throw new Error(error.message);
+
+  // Categorias desligadas não entram no resumo (igual ao painel).
+  const ignorados = new Set(
+    (ignRows ?? []).map((m) => `${m.tipo}:${m.categoria_norm}`),
+  );
 
   let totalReceita = 0;
   let totalDespesa = 0;
   let ultima: string | null = null;
   for (const r of data ?? []) {
+    if (r.categoria_norm && ignorados.has(`${r.tipo}:${r.categoria_norm}`))
+      continue;
     const v = Number(r.valor);
     if (r.tipo === "receita") totalReceita += v;
     else totalDespesa += v;

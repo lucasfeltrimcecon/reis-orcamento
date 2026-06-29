@@ -42,12 +42,20 @@ export default async function RealizadoPage({
             O que de fato entrou e saiu (vindo do Conta Azul).
           </p>
         </div>
-        <Link
-          href={`/empresas/${id}/realizado/importar?ano=${ano}`}
-          className="rounded-xl bg-[var(--action)] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98]"
-        >
-          Importar realizado
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/empresas/${id}/categorias`}
+            className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-bold text-[var(--action)] transition hover:border-[var(--action)]"
+          >
+            Categorias
+          </Link>
+          <Link
+            href={`/empresas/${id}/realizado/importar?ano=${ano}`}
+            className="rounded-xl bg-[var(--action)] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98]"
+          >
+            Importar realizado
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center gap-2">

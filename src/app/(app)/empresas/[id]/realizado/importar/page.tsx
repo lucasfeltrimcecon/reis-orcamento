@@ -33,9 +33,9 @@ export default async function ImportarRealizadoPage({
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Suba os arquivos do <b>Conta Azul</b> (Contas a Pagar e a Receber) do mês.
-        Pode subir vários de uma vez. O sistema lê a coluna <b>Categoria 1</b>,
-        usa o <b>Centro de Custo</b> como área, e aplica o filtro salvo da empresa
-        — você só decide as categorias novas.
+        Pode subir vários de uma vez. <b>Tudo é importado</b> — depois você
+        liga/desliga o que conta no painel em{" "}
+        <b className="text-[var(--action)]">Categorias</b>.
       </p>
 
       <div className="mt-3 rounded-lg bg-[#fdf4e3] px-3.5 py-2.5 text-xs font-semibold text-[#b8780c]">

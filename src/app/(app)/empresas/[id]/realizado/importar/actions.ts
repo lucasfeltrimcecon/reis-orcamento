@@ -133,22 +133,37 @@ export async function confirmarContaAzul(payload: {
 
   const supabase = await createClient();
 
-  // 1) Salva as decisões no mapa de categorias
-  const mapaRows = itens.map((it) => ({
-    empresa_id: empresaId,
-    tipo: it.tipo,
-    categoria_norm: it.categoriaNorm,
-    categoria_label: it.categoria,
-    ignorar: !!it.ignorar,
-  }));
-  if (mapaRows.length > 0) {
+  // 1) Registra categorias NOVAS no mapa (preserva as decisões já salvas).
+  //    Novas entram com sugestão por palavra-chave (editável na tela Categorias).
+  const { data: existentes } = await supabase
+    .from("mapa_categoria")
+    .select("tipo, categoria_norm")
+    .eq("empresa_id", empresaId);
+  const jaSalvas = new Set(
+    (existentes ?? []).map((m) => `${m.tipo}:${m.categoria_norm}`),
+  );
+  const seen = new Set<string>();
+  const novasCategorias = [];
+  for (const it of itens) {
+    const k = `${it.tipo}:${it.categoriaNorm}`;
+    if (jaSalvas.has(k) || seen.has(k)) continue;
+    seen.add(k);
+    novasCategorias.push({
+      empresa_id: empresaId,
+      tipo: it.tipo,
+      categoria_norm: it.categoriaNorm,
+      categoria_label: it.categoria,
+      ignorar: sugereIgnorar(it.categoria),
+    });
+  }
+  if (novasCategorias.length > 0) {
     const { error } = await supabase
       .from("mapa_categoria")
-      .upsert(mapaRows, { onConflict: "empresa_id,tipo,categoria_norm" });
-    if (error) return { erro: "Falha ao salvar o mapa de categorias." };
+      .insert(novasCategorias);
+    if (error) return { erro: "Falha ao registrar as categorias." };
   }
 
-  // 2) Resolve/cria as áreas (Centro de Custo) das despesas incluídas
+  // 2) Resolve/cria as áreas (Centro de Custo) de TODAS as despesas.
   const { data: areas } = await supabase
     .from("areas")
     .select("id, nome, ordem")
@@ -156,15 +171,15 @@ export async function confirmarContaAzul(payload: {
   const areaMap = new Map((areas ?? []).map((a) => [normalizarTexto(a.nome), a.id]));
   let ordem = (areas ?? []).reduce((m, a) => Math.max(m, a.ordem), -1) + 1;
 
-  const novas = new Map<string, string>();
+  const novasAreas = new Map<string, string>();
   for (const it of itens) {
-    if (it.tipo !== "despesa" || it.ignorar) continue;
+    if (it.tipo !== "despesa") continue;
     const nome = it.area || "Sem área";
     const k = normalizarTexto(nome);
-    if (!areaMap.has(k) && !novas.has(k)) novas.set(k, nome);
+    if (!areaMap.has(k) && !novasAreas.has(k)) novasAreas.set(k, nome);
   }
-  if (novas.size > 0) {
-    const ins = [...novas.values()].map((nome) => ({
+  if (novasAreas.size > 0) {
+    const ins = [...novasAreas.values()].map((nome) => ({
       empresa_id: empresaId,
       nome,
       ordem: ordem++,
@@ -177,20 +192,33 @@ export async function confirmarContaAzul(payload: {
     for (const c of criadas ?? []) areaMap.set(normalizarTexto(c.nome), c.id);
   }
 
-  // 3) Monta as linhas do realizado (só as incluídas)
+  // 3) Monta as linhas do realizado: TUDO sobe (o filtro acontece no painel,
+  //    via "Categorias ativas"). Cada linha leva sua categoria_norm.
   const linhas: {
     area_id: string | null;
     descricao: string;
     valor: number;
     tipo: string;
+    categoria_norm: string;
   }[] = [];
   for (const it of itens) {
-    if (it.ignorar) continue;
     if (it.tipo === "despesa") {
       const areaId = areaMap.get(normalizarTexto(it.area || "Sem área")) ?? null;
-      linhas.push({ area_id: areaId, descricao: it.categoria, valor: it.valor, tipo: "despesa" });
+      linhas.push({
+        area_id: areaId,
+        descricao: it.categoria,
+        valor: it.valor,
+        tipo: "despesa",
+        categoria_norm: it.categoriaNorm,
+      });
     } else {
-      linhas.push({ area_id: null, descricao: it.categoria, valor: it.valor, tipo: "receita" });
+      linhas.push({
+        area_id: null,
+        descricao: it.categoria,
+        valor: it.valor,
+        tipo: "receita",
+        categoria_norm: it.categoriaNorm,
+      });
     }
   }
 
@@ -206,5 +234,6 @@ export async function confirmarContaAzul(payload: {
   if (error) return { erro: "Falha ao salvar no banco." };
 
   revalidatePath(`/empresas/${empresaId}/realizado`);
+  revalidatePath("/painel");
   return { ok: true };
 }
