@@ -23,3 +23,15 @@ export type OrcamentoArea = {
   valores: number[]; // 12 posições, Jan..Dez
   total: number;
 };
+
+export type Profile = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: "master" | "cliente";
+  created_at: string;
+};
+
+export type UsuarioComEmpresas = Profile & {
+  empresas: { id: string; nome: string }[];
+};

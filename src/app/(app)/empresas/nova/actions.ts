@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { requireMaster } from "@/lib/auth";
 import { slugify } from "@/lib/slug";
 
 const AREAS_PADRAO = [
@@ -27,6 +28,8 @@ export async function criarEmpresa(
   _prev: NovaEmpresaState,
   formData: FormData,
 ): Promise<NovaEmpresaState> {
+  await requireMaster();
+
   const parsed = NovaEmpresaSchema.safeParse({
     nome: formData.get("nome"),
     criarAreasPadrao: formData.get("criarAreasPadrao") === "on",

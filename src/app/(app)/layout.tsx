@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireAcesso } from "@/lib/auth";
 import { Sidebar } from "./Sidebar";
 
 export default async function AppLayout({
@@ -7,29 +6,15 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Acesso = autenticado E (master OU vinculado a uma empresa).
+  // Sem vínculo → /sem-acesso. O RLS escopa os dados do cliente.
+  const { email, isMaster } = await requireAcesso();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  // Autorização: só papel master acessa a área administrativa na V1.
-  const { data: isMaster } = await supabase.rpc("is_master");
-  if (!isMaster) {
-    redirect("/login");
-  }
-
-  const emailIniciais = (user.email ?? "?")
-    .split("@")[0]
-    .slice(0, 2)
-    .toUpperCase();
+  const emailIniciais = (email || "?").split("@")[0].slice(0, 2).toUpperCase();
 
   return (
     <div className="min-h-full bg-[var(--background)]">
-      <Sidebar email={user.email ?? ""} iniciais={emailIniciais} />
+      <Sidebar email={email} iniciais={emailIniciais} isMaster={isMaster} />
       <div className="lg:pl-64">
         <main className="min-h-screen">{children}</main>
       </div>

@@ -6,28 +6,40 @@ import { useState } from "react";
 import { signOut } from "@/app/login/actions";
 
 type Item = { href: string; label: string; icon: React.ReactNode };
+type Secao = { titulo: string; itens: Item[] };
 
-// Agrupado por seção para facilitar a expansão futura do sistema.
-const SECOES: { titulo: string; itens: Item[] }[] = [
-  {
+// Menu por papel. Cliente é read-only (Painel + Documentos); master administra.
+// Itens são adicionados conforme as fases entram no ar.
+function secoesPara(isMaster: boolean): Secao[] {
+  const visaoGeral: Secao = {
     titulo: "Visão geral",
     itens: [{ href: "/painel", label: "Painel", icon: <IconePainel /> }],
-  },
-  {
-    titulo: "Cadastros",
-    itens: [{ href: "/empresas", label: "Empresas", icon: <IconeEmpresa /> }],
-  },
-];
+  };
+  if (!isMaster) return [visaoGeral];
+  return [
+    visaoGeral,
+    {
+      titulo: "Cadastros",
+      itens: [
+        { href: "/empresas", label: "Empresas", icon: <IconeEmpresa /> },
+        { href: "/usuarios", label: "Usuários", icon: <IconeUsuario /> },
+      ],
+    },
+  ];
+}
 
 export function Sidebar({
   email,
   iniciais,
+  isMaster,
 }: {
   email: string;
   iniciais: string;
+  isMaster: boolean;
 }) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
+  const secoes = secoesPara(isMaster);
 
   const ativo = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -77,7 +89,7 @@ export function Sidebar({
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
-          {SECOES.map((s) => (
+          {secoes.map((s) => (
             <div key={s.titulo}>
               <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
                 {s.titulo}
@@ -119,7 +131,7 @@ export function Sidebar({
                 {email}
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Master
+                {isMaster ? "Master" : "Cliente"}
               </p>
             </div>
           </div>
@@ -171,6 +183,17 @@ function IconeEmpresa() {
       <path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
       <path d="M15 9h3a1 1 0 0 1 1 1v11" />
       <path d="M8 8h2M8 12h2M8 16h2" />
+    </svg>
+  );
+}
+
+function IconeUsuario() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }

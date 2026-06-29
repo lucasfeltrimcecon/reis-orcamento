@@ -4,6 +4,7 @@ import type {
   Empresa,
   EmpresaComContagem,
   OrcamentoArea,
+  UsuarioComEmpresas,
 } from "@/lib/types";
 
 export async function listEmpresas(): Promise<EmpresaComContagem[]> {
@@ -113,4 +114,35 @@ export async function getRealizadoResumo(
     qtdLinhas: data?.length ?? 0,
     ultimaImportacao: ultima,
   };
+}
+
+/**
+ * Lista todos os usuários com as empresas vinculadas (só master enxerga, via RLS
+ * "master le profiles" / "master full membros"). profiles e empresa_membros não
+ * têm FK direta entre si (ambos apontam pra auth.users), então junta-se em JS.
+ */
+export async function listUsuarios(): Promise<UsuarioComEmpresas[]> {
+  const supabase = await createClient();
+  const [{ data: profiles }, { data: membros }, { data: empresas }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, role, created_at")
+        .order("created_at"),
+      supabase.from("empresa_membros").select("user_id, empresa_id"),
+      supabase.from("empresas").select("id, nome"),
+    ]);
+
+  const nomeById = new Map((empresas ?? []).map((e) => [e.id, e.nome]));
+  const porUser = new Map<string, { id: string; nome: string }[]>();
+  for (const m of membros ?? []) {
+    const arr = porUser.get(m.user_id) ?? [];
+    arr.push({ id: m.empresa_id, nome: nomeById.get(m.empresa_id) ?? "—" });
+    porUser.set(m.user_id, arr);
+  }
+
+  return (profiles ?? []).map((p) => ({
+    ...(p as UsuarioComEmpresas),
+    empresas: porUser.get(p.id) ?? [],
+  }));
 }

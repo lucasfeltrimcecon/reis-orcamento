@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { requireMaster } from "@/lib/auth";
 
 const AddSchema = z.object({
   empresaId: z.string().uuid(),
@@ -10,6 +11,7 @@ const AddSchema = z.object({
 });
 
 export async function adicionarArea(formData: FormData) {
+  await requireMaster();
   const parsed = AddSchema.safeParse({
     empresaId: formData.get("empresaId"),
     nome: formData.get("nome"),
@@ -42,6 +44,7 @@ const RenameSchema = z.object({
 });
 
 export async function renomearArea(formData: FormData) {
+  await requireMaster();
   const parsed = RenameSchema.safeParse({
     empresaId: formData.get("empresaId"),
     areaId: formData.get("areaId"),
@@ -64,6 +67,7 @@ const RemoveSchema = z.object({
 });
 
 export async function removerArea(formData: FormData) {
+  await requireMaster();
   const parsed = RemoveSchema.safeParse({
     empresaId: formData.get("empresaId"),
     areaId: formData.get("areaId"),
