@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { listEmpresas } from "@/lib/supabase/queries";
+import { getEmpresaAtiva } from "@/lib/empresa-ativa";
 import { getPainel, type Modo } from "@/lib/dashboard";
 import { fmtBRL, MESES_ABREV } from "@/lib/meses";
 import { PainelGauges } from "./PainelGauges";
-import { EmpresaSelect } from "./EmpresaSelect";
 
 export const metadata = { title: "Painel · Reis" };
 
@@ -48,11 +48,10 @@ export default async function PainelPage({
     );
   }
 
-  const empresaId =
-    sp.empresa && empresas.some((e) => e.id === sp.empresa)
-      ? sp.empresa
-      : empresas[0].id;
-  const empresa = empresas.find((e) => e.id === empresaId)!;
+  const empresa = (await getEmpresaAtiva(
+    empresas.map((e) => ({ id: e.id, nome: e.nome })),
+  ))!;
+  const empresaId = empresa.id;
   const hoje = new Date();
   const ano = Number(sp.ano) || hoje.getFullYear();
   const mesRef = Math.min(
@@ -65,7 +64,6 @@ export default async function PainelPage({
 
   const base = (over: Record<string, string | number>) => {
     const q = new URLSearchParams({
-      empresa: empresaId,
       ano: String(ano),
       mes: String(mesRef),
       modo,
@@ -79,24 +77,15 @@ export default async function PainelPage({
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <EmpresaSelect
-            empresas={empresas}
-            value={empresaId}
-            ano={ano}
-            mes={mesRef}
-            modo={modo}
-          />
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
-              Painel
-            </p>
-            <p className="text-sm font-semibold text-[var(--navy)]">
-              {modo === "mes"
-                ? `${MESES_ABREV[mesRef - 1]}/${ano}`
-                : `Acumulado até ${MESES_ABREV[mesRef - 1]}/${ano}`}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--navy)]">
+            {empresa.nome}
+          </h1>
+          <p className="text-sm text-[var(--muted)]">
+            {modo === "mes"
+              ? `Painel · ${MESES_ABREV[mesRef - 1]}/${ano}`
+              : `Painel · acumulado até ${MESES_ABREV[mesRef - 1]}/${ano}`}
+          </p>
         </div>
         <div className="inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
           <Link

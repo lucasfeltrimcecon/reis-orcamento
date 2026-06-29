@@ -1,9 +1,11 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { COOKIE_EMPRESA } from "@/lib/empresa-ativa";
 
 const SignInSchema = z.object({
   email: z.string().trim().toLowerCase().email("E-mail inválido"),
@@ -46,12 +48,15 @@ export async function signIn(
     };
   }
 
+  // Começa cada sessão escolhendo a empresa (limpa a anterior).
+  (await cookies()).delete(COOKIE_EMPRESA);
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/selecionar-empresa");
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(COOKIE_EMPRESA);
   redirect("/login");
 }

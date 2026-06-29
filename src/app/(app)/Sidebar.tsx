@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { signOut } from "@/app/login/actions";
+import { selecionarEmpresa } from "@/lib/empresa-actions";
 
 type Item = { href: string; label: string; icon: React.ReactNode };
 type Secao = { titulo: string; itens: Item[] };
+type EmpresaMini = { id: string; nome: string };
 
 // Menu por papel. Cliente é read-only (Painel + Documentos); master administra.
 // Itens são adicionados conforme as fases entram no ar.
@@ -35,10 +37,14 @@ export function Sidebar({
   email,
   iniciais,
   isMaster,
+  empresas,
+  empresaAtivaId,
 }: {
   email: string;
   iniciais: string;
   isMaster: boolean;
+  empresas: EmpresaMini[];
+  empresaAtivaId: string | null;
 }) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
@@ -90,6 +96,17 @@ export function Sidebar({
             ✕
           </button>
         </div>
+
+        {empresas.length > 0 && (
+          <div className="border-b border-[var(--border)] px-3 py-3">
+            <EmpresaSwitcher
+              empresas={empresas}
+              ativaId={empresaAtivaId}
+              pathname={pathname}
+              onNavigate={() => setAberto(false)}
+            />
+          </div>
+        )}
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
           {secoes.map((s) => (
@@ -208,5 +225,88 @@ function IconeDocumento() {
       <path d="M14 2v6h6" />
       <path d="M8 13h8M8 17h8" />
     </svg>
+  );
+}
+
+function EmpresaSwitcher({
+  empresas,
+  ativaId,
+  pathname,
+  onNavigate,
+}: {
+  empresas: EmpresaMini[];
+  ativaId: string | null;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const ativa = empresas.find((e) => e.id === ativaId) ?? empresas[0];
+  const unica = empresas.length === 1;
+
+  function escolher(id: string) {
+    setOpen(false);
+    onNavigate();
+    start(() => selecionarEmpresa(id, pathname));
+  }
+
+  return (
+    <div className="relative">
+      <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+        Empresa
+      </p>
+      <button
+        type="button"
+        onClick={() => !unica && setOpen((o) => !o)}
+        disabled={unica || pending}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-left transition hover:border-[var(--action)] disabled:cursor-default disabled:hover:border-[var(--border)]"
+      >
+        <span className="truncate text-sm font-extrabold text-[var(--navy)]">
+          {pending ? "Trocando…" : (ativa?.nome ?? "—")}
+        </span>
+        {!unica && (
+          <svg
+            className={`shrink-0 text-[var(--muted)] transition-transform ${open ? "rotate-180" : ""}`}
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        )}
+      </button>
+
+      {open && !unica && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-auto rounded-xl border border-[var(--border)] bg-white p-1 shadow-xl">
+          {empresas.map((e) => {
+            const sel = e.id === ativa?.id;
+            return (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => escolher(e.id)}
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold transition ${
+                  sel
+                    ? "bg-[var(--navy)] text-white"
+                    : "text-[var(--ink)] hover:bg-[var(--background)]"
+                }`}
+              >
+                <span className="truncate">{e.nome}</span>
+                {sel && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
