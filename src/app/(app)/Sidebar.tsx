@@ -13,7 +13,10 @@ type Secao = { titulo: string; itens: Item[] };
 function secoesPara(isMaster: boolean): Secao[] {
   const visaoGeral: Secao = {
     titulo: "Visão geral",
-    itens: [{ href: "/painel", label: "Painel", icon: <IconePainel /> }],
+    itens: [
+      { href: "/painel", label: "Painel", icon: <IconePainel /> },
+      { href: "/documentos", label: "Documentos", icon: <IconeDocumento /> },
+    ],
   };
   if (!isMaster) return [visaoGeral];
   return [
@@ -194,6 +197,16 @@ function IconeUsuario() {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconeDocumento() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M8 13h8M8 17h8" />
     </svg>
   );
 }

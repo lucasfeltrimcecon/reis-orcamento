@@ -35,3 +35,41 @@ export type Profile = {
 export type UsuarioComEmpresas = Profile & {
   empresas: { id: string; nome: string }[];
 };
+
+export type Pasta = {
+  id: string;
+  empresa_id: string;
+  parent_id: string | null;
+  nome: string;
+  ordem: number;
+  created_at: string;
+};
+
+export type CategoriaDoc = "mapeamento" | "fechamento" | "documento";
+
+export type Documento = {
+  id: string;
+  empresa_id: string;
+  pasta_id: string | null;
+  categoria: CategoriaDoc;
+  titulo: string;
+  ano: number | null;
+  mes: number | null;
+  storage_path: string;
+  mime: string | null;
+  tamanho_bytes: number | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type Fechamento = {
+  id: string;
+  empresa_id: string;
+  ano: number;
+  mes: number;
+  resumo: string;
+  documento_id: string | null;
+  status: "rascunho" | "publicado";
+  created_at: string;
+  updated_at: string;
+};
