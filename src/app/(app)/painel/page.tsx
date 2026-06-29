@@ -13,6 +13,11 @@ function pct(v: number | null): string {
     : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 }
 
+// Valor já em porcentagem (ex: 30 -> "30%")
+function fmtPct(v: number): string {
+  return `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}
+
 export default async function PainelPage({
   searchParams,
 }: {
@@ -139,6 +144,49 @@ export default async function PainelPage({
         <Kpi label="Margem acumulada" valor={pct(d.margemAcumulada)} cor="ink" />
       </div>
 
+      {/* Metas × Realizado */}
+      {d.metas.temMetas && (
+        <div className="mt-7">
+          <h2 className="mb-3 text-sm font-bold text-[var(--ink)]">
+            Metas × Realizado
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MetaCard
+              label="Receita"
+              realizado={fmtBRL(d.metas.receita.realizado)}
+              meta={fmtBRL(d.metas.receita.meta)}
+              pct={d.metas.receita.pct}
+            />
+            <MetaCard
+              label="Resultado líquido"
+              realizado={fmtBRL(d.metas.resultado.realizado)}
+              meta={fmtBRL(d.metas.resultado.meta)}
+              pct={d.metas.resultado.pct}
+            />
+            <MetaCard
+              label="Margem"
+              realizado={
+                d.metas.margem.realizado !== null
+                  ? fmtPct(d.metas.margem.realizado)
+                  : "—"
+              }
+              meta={d.metas.margem.meta > 0 ? fmtPct(d.metas.margem.meta) : "—"}
+              pct={
+                d.metas.margem.meta > 0 && d.metas.margem.realizado !== null
+                  ? d.metas.margem.realizado / d.metas.margem.meta
+                  : null
+              }
+            />
+            <MetaCard
+              label="Caixa gerado"
+              realizado={fmtBRL(d.metas.caixa.realizado)}
+              meta={fmtBRL(d.metas.caixa.meta)}
+              pct={d.metas.caixa.pct}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -246,6 +294,53 @@ function Kpi({
         style={{ color: c }}
       >
         {valor}
+      </div>
+    </div>
+  );
+}
+
+function MetaCard({
+  label,
+  realizado,
+  meta,
+  pct: ratio,
+}: {
+  label: string;
+  realizado: string;
+  meta: string;
+  pct: number | null; // realizado/meta (1 = bateu a meta)
+}) {
+  const cor =
+    ratio === null
+      ? "var(--muted)"
+      : ratio >= 1
+        ? "var(--green)"
+        : ratio >= 0.8
+          ? "var(--yellow)"
+          : "var(--red)";
+  const w = ratio === null ? 0 : Math.max(0, Math.min(ratio, 1)) * 100;
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
+          {label}
+        </span>
+        <span className="text-xs font-bold tabular-nums" style={{ color: cor }}>
+          {ratio === null ? "sem meta" : `${Math.round(ratio * 100)}%`}
+        </span>
+      </div>
+      <div
+        className="mt-1.5 text-xl font-extrabold tabular-nums"
+        style={{ color: cor }}
+      >
+        {realizado}
+      </div>
+      <div className="text-xs text-[var(--muted)] tabular-nums">meta {meta}</div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${w}%`, background: cor }}
+        />
       </div>
     </div>
   );

@@ -83,6 +83,12 @@ export default async function EmpresasPage() {
                         Orçamento
                       </Link>
                       <Link
+                        href={`/empresas/${e.id}/metas`}
+                        className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--muted)] transition hover:border-[var(--action)] hover:text-[var(--action)]"
+                      >
+                        Metas
+                      </Link>
+                      <Link
                         href={`/empresas/${e.id}/realizado`}
                         className="rounded-lg border border-[var(--border)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--action)] transition hover:border-[var(--action)]"
                       >

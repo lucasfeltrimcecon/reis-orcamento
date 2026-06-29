@@ -12,6 +12,20 @@ export type GaugeArea = {
   naoPlanejado: boolean; // orçado = 0 mas houve gasto
 };
 
+export type MetaKPI = {
+  realizado: number;
+  meta: number;
+  pct: number | null; // realizado / meta (null se meta = 0)
+};
+
+export type PainelMetas = {
+  temMetas: boolean;
+  receita: MetaKPI;
+  resultado: MetaKPI;
+  caixa: MetaKPI; // caixa gerado (realizado manual)
+  margem: { realizado: number | null; meta: number }; // ambos em % (ex: 30)
+};
+
 export type PainelData = {
   faturou: number;
   gastou: number;
@@ -22,6 +36,7 @@ export type PainelData = {
   totalRealizado: number; // = gastou (despesa)
   execGeral: number | null;
   areas: GaugeArea[];
+  metas: PainelMetas;
 };
 
 type OrcRow = { area_id: string; mes: number; valor: number };
@@ -45,30 +60,40 @@ export async function getPainel(
 ): Promise<PainelData> {
   const supabase = await createClient();
 
-  const [{ data: areas }, { data: orcRows }, { data: realRows }, { data: ignRows }] =
-    await Promise.all([
-      supabase
-        .from("areas")
-        .select("id, nome, ordem")
-        .eq("empresa_id", empresaId)
-        .order("ordem")
-        .order("nome"),
-      supabase
-        .from("orcamento")
-        .select("area_id, mes, valor")
-        .eq("empresa_id", empresaId)
-        .eq("ano", ano),
-      supabase
-        .from("realizado")
-        .select("area_id, mes, valor, tipo, categoria_norm")
-        .eq("empresa_id", empresaId)
-        .eq("ano", ano),
-      supabase
-        .from("mapa_categoria")
-        .select("tipo, categoria_norm")
-        .eq("empresa_id", empresaId)
-        .eq("ignorar", true),
-    ]);
+  const [
+    { data: areas },
+    { data: orcRows },
+    { data: realRows },
+    { data: ignRows },
+    { data: metaRows },
+  ] = await Promise.all([
+    supabase
+      .from("areas")
+      .select("id, nome, ordem")
+      .eq("empresa_id", empresaId)
+      .order("ordem")
+      .order("nome"),
+    supabase
+      .from("orcamento")
+      .select("area_id, mes, valor")
+      .eq("empresa_id", empresaId)
+      .eq("ano", ano),
+    supabase
+      .from("realizado")
+      .select("area_id, mes, valor, tipo, categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("ano", ano),
+    supabase
+      .from("mapa_categoria")
+      .select("tipo, categoria_norm")
+      .eq("empresa_id", empresaId)
+      .eq("ignorar", true),
+    supabase
+      .from("metas")
+      .select("mes, meta_receita, meta_resultado, meta_margem, meta_caixa, caixa_real")
+      .eq("empresa_id", empresaId)
+      .eq("ano", ano),
+  ]);
 
   const orc = (orcRows ?? []) as OrcRow[];
   const real = (realRows ?? []) as RealRow[];
@@ -148,6 +173,66 @@ export async function getPainel(
   const totalRealizado = gastou;
   const execGeral = totalOrcado > 0 ? gastou / totalOrcado : null;
 
+  // --- Metas de topo (Meta × Realizado) ---
+  type MetaRow = {
+    mes: number;
+    meta_receita: number;
+    meta_resultado: number;
+    meta_margem: number;
+    meta_caixa: number;
+    caixa_real: number;
+  };
+  const mrows = (metaRows ?? []) as MetaRow[];
+  let metaReceita = 0,
+    metaResultado = 0,
+    metaCaixa = 0,
+    caixaReal = 0;
+  for (const m of mrows) {
+    if (!noPeriodo(m.mes, mesRef, modo)) continue;
+    metaReceita += Number(m.meta_receita);
+    metaResultado += Number(m.meta_resultado);
+    metaCaixa += Number(m.meta_caixa);
+    caixaReal += Number(m.caixa_real);
+  }
+  // Margem é percentual (não soma): usa a meta do mês de referência.
+  const mref = mrows.find((m) => m.mes === mesRef);
+  const metaMargem = mref ? Number(mref.meta_margem) : 0;
+  const margemRealPct =
+    modo === "mes"
+      ? margemMensal !== null
+        ? margemMensal * 100
+        : null
+      : margemAcumulada !== null
+        ? margemAcumulada * 100
+        : null;
+
+  const metas: PainelMetas = {
+    temMetas: mrows.some(
+      (m) =>
+        Number(m.meta_receita) ||
+        Number(m.meta_resultado) ||
+        Number(m.meta_margem) ||
+        Number(m.meta_caixa) ||
+        Number(m.caixa_real),
+    ),
+    receita: {
+      realizado: faturou,
+      meta: metaReceita,
+      pct: metaReceita > 0 ? faturou / metaReceita : null,
+    },
+    resultado: {
+      realizado: resultado,
+      meta: metaResultado,
+      pct: metaResultado > 0 ? resultado / metaResultado : null,
+    },
+    caixa: {
+      realizado: caixaReal,
+      meta: metaCaixa,
+      pct: metaCaixa > 0 ? caixaReal / metaCaixa : null,
+    },
+    margem: { realizado: margemRealPct, meta: metaMargem },
+  };
+
   return {
     faturou,
     gastou,
@@ -158,6 +243,7 @@ export async function getPainel(
     totalRealizado,
     execGeral,
     areas: gauges,
+    metas,
   };
 }
 
