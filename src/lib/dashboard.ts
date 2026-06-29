@@ -194,9 +194,22 @@ export async function getPainel(
     metaCaixa += Number(m.meta_caixa);
     caixaReal += Number(m.caixa_real);
   }
-  // Margem é percentual (não soma): usa a meta do mês de referência.
-  const mref = mrows.find((m) => m.mes === mesRef);
-  const metaMargem = mref ? Number(mref.meta_margem) : 0;
+  // Margem é percentual (não soma). No mês: meta do mês de referência.
+  // No acumulado: média das metas de margem definidas no período (Jan..mesRef),
+  // coerente com a margem realizada que também é acumulada.
+  let metaMargem = 0;
+  if (modo === "mes") {
+    const mref = mrows.find((m) => m.mes === mesRef);
+    metaMargem = mref ? Number(mref.meta_margem) : 0;
+  } else {
+    const noPer = mrows.filter(
+      (m) => noPeriodo(m.mes, mesRef, modo) && Number(m.meta_margem) > 0,
+    );
+    metaMargem =
+      noPer.length > 0
+        ? noPer.reduce((s, m) => s + Number(m.meta_margem), 0) / noPer.length
+        : 0;
+  }
   const margemRealPct =
     modo === "mes"
       ? margemMensal !== null

@@ -32,9 +32,10 @@ export async function salvarMetas(formData: FormData) {
     });
   }
 
-  await supabase
+  const { error } = await supabase
     .from("metas")
     .upsert(rows, { onConflict: "empresa_id,ano,mes" });
+  if (error) throw new Error("Não foi possível salvar as metas. Tente de novo.");
 
   revalidatePath(`/empresas/${empresaId}/metas`);
   revalidatePath("/painel");

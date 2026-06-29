@@ -47,9 +47,11 @@ export async function salvarOrcamentoForm(formData: FormData) {
   }
 
   if (rows.length > 0) {
-    await supabase
+    const { error } = await supabase
       .from("orcamento")
       .upsert(rows, { onConflict: "empresa_id,area_id,ano,mes" });
+    if (error)
+      throw new Error("Não foi possível salvar o orçamento. Tente de novo.");
   }
 
   revalidatePath(`/empresas/${empresaId}/orcamento`);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEmpresa, listAreas } from "@/lib/supabase/queries";
+import { requireMaster } from "@/lib/auth";
 import { adicionarArea } from "./actions";
 import { AreaRow } from "./AreaRow";
 
@@ -11,6 +12,7 @@ export default async function AreasPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireMaster();
   const { id } = await params;
   const empresa = await getEmpresa(id);
   if (!empresa) notFound();

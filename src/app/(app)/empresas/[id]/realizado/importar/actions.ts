@@ -13,6 +13,7 @@ import {
 
 export type PreviewItem = {
   tipo: "receita" | "despesa";
+  chave: string; // única por (categoria, centro de custo)
   categoriaNorm: string;
   categoria: string;
   valor: number;
@@ -39,12 +40,11 @@ async function mergeArquivos(
     const r = parseContaAzul(await f.arrayBuffer(), tipo);
     if (!r.ok) throw new Error(r.erro ?? "Falha ao ler arquivo.");
     for (const it of r.itens) {
-      const e = map.get(it.categoriaNorm);
+      const e = map.get(it.chave);
       if (e) {
         e.valor += it.valor;
-        if (!e.area && it.area) e.area = it.area;
       } else {
-        map.set(it.categoriaNorm, { ...it });
+        map.set(it.chave, { ...it });
       }
     }
   }
@@ -104,6 +104,7 @@ export async function analisarContaAzul(
       const ignorar = isNew ? sugereIgnorar(it.categoria) : salvo;
       itens.push({
         tipo,
+        chave: it.chave,
         categoriaNorm: it.categoriaNorm,
         categoria: it.categoria,
         valor: it.valor,

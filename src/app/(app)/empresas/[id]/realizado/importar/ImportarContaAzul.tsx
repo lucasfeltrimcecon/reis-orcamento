@@ -347,7 +347,7 @@ function TabelaPreview({
           <tbody>
             {linhas.map(({ it }) => (
               <tr
-                key={it.categoriaNorm}
+                key={it.chave}
                 className="border-b border-[var(--border)] last:border-0"
               >
                 <td className="px-5 py-3">

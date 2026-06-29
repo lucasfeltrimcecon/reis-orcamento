@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEmpresa, getOrcamento } from "@/lib/supabase/queries";
+import { requireMaster } from "@/lib/auth";
 import { MESES_ABREV, fmtNum } from "@/lib/meses";
 
 export const metadata = { title: "Orçamento · Reis" };
@@ -14,6 +15,7 @@ export default async function OrcamentoPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ano?: string }>;
 }) {
+  await requireMaster();
   const { id } = await params;
   const { ano: anoParam } = await searchParams;
   const ano = Number(anoParam) || 2026;

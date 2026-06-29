@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEmpresa } from "@/lib/supabase/queries";
+import { requireMaster } from "@/lib/auth";
 import { ImportarContaAzul } from "./ImportarContaAzul";
 
 export const metadata = { title: "Importar realizado · Reis" };
@@ -12,10 +13,12 @@ export default async function ImportarRealizadoPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
+  await requireMaster();
   const { id } = await params;
   const { ano: anoParam, mes: mesParam } = await searchParams;
   const ano = Number(anoParam) || 2026;
-  const mes = Math.min(Math.max(Number(mesParam) || 6, 1), 12);
+  const mesAtual = new Date().getMonth() + 1;
+  const mes = Math.min(Math.max(Number(mesParam) || mesAtual, 1), 12);
 
   const empresa = await getEmpresa(id);
   if (!empresa) notFound();

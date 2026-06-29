@@ -37,7 +37,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          defaultValue="lucas@reisaceleradora.com"
+          placeholder="seu@email.com.br"
           className="w-full rounded-xl border border-[var(--border)] bg-white px-3.5 py-2.5 text-sm transition focus:border-[var(--action)] focus:outline-none focus:ring-3 focus:ring-[#0369a126]"
         />
         {state.fieldErrors?.email && (

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Area,
@@ -7,22 +8,25 @@ import type {
   UsuarioComEmpresas,
 } from "@/lib/types";
 
-export async function listEmpresas(): Promise<EmpresaComContagem[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("empresas")
-    .select("*, areas(count)")
-    .order("nome");
+// cache() dedup a query no mesmo request (layout + page chamam isto).
+export const listEmpresas = cache(
+  async (): Promise<EmpresaComContagem[]> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("empresas")
+      .select("*, areas(count)")
+      .order("nome");
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-  return (data ?? []).map((e) => {
-    const { areas, ...rest } = e as Empresa & {
-      areas: { count: number }[];
-    };
-    return { ...rest, total_areas: areas?.[0]?.count ?? 0 };
-  });
-}
+    return (data ?? []).map((e) => {
+      const { areas, ...rest } = e as Empresa & {
+        areas: { count: number }[];
+      };
+      return { ...rest, total_areas: areas?.[0]?.count ?? 0 };
+    });
+  },
+);
 
 export async function getEmpresa(id: string): Promise<Empresa | null> {
   const supabase = await createClient();

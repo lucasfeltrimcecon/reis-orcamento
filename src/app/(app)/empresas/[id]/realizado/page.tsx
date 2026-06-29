@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEmpresa, getRealizadoResumo } from "@/lib/supabase/queries";
+import { requireMaster } from "@/lib/auth";
 import { fmtBRL } from "@/lib/meses";
 
 export const metadata = { title: "Realizado · Reis" };
@@ -14,6 +15,7 @@ export default async function RealizadoPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ano?: string }>;
 }) {
+  await requireMaster();
   const { id } = await params;
   const { ano: anoParam } = await searchParams;
   const ano = Number(anoParam) || 2026;

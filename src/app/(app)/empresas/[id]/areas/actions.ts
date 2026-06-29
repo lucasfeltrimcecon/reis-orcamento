@@ -28,11 +28,12 @@ export async function adicionarArea(formData: FormData) {
     .limit(1)
     .maybeSingle();
 
-  await supabase.from("areas").insert({
+  const { error } = await supabase.from("areas").insert({
     empresa_id: parsed.data.empresaId,
     nome: parsed.data.nome,
     ordem: (max?.ordem ?? -1) + 1,
   });
+  if (error) throw new Error("Não foi possível adicionar a área.");
 
   revalidatePath(`/empresas/${parsed.data.empresaId}/areas`);
 }
@@ -53,10 +54,11 @@ export async function renomearArea(formData: FormData) {
   if (!parsed.success) return;
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("areas")
     .update({ nome: parsed.data.nome })
     .eq("id", parsed.data.areaId);
+  if (error) throw new Error("Não foi possível renomear a área.");
 
   revalidatePath(`/empresas/${parsed.data.empresaId}/areas`);
 }
@@ -75,7 +77,11 @@ export async function removerArea(formData: FormData) {
   if (!parsed.success) return;
 
   const supabase = await createClient();
-  await supabase.from("areas").delete().eq("id", parsed.data.areaId);
+  const { error } = await supabase
+    .from("areas")
+    .delete()
+    .eq("id", parsed.data.areaId);
+  if (error) throw new Error("Não foi possível remover a área.");
 
   revalidatePath(`/empresas/${parsed.data.empresaId}/areas`);
 }

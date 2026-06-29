@@ -19,7 +19,8 @@ export function sugereIgnorar(categoria: string): boolean {
 }
 
 export type ItemContaAzul = {
-  categoriaNorm: string;
+  chave: string; // chave única de agregação (categoria; + centro de custo na despesa)
+  categoriaNorm: string; // unidade de filtro (mapa_categoria)
   categoria: string; // rótulo original
   valor: number; // magnitude (positiva)
   area: string | null; // Centro de Custo (só despesa)
@@ -42,7 +43,9 @@ function acharColuna(header: unknown[], alvo: string): number {
  * - Valor da RECEITA: "Valor recebido da parcela (R$)" (o que de fato entrou).
  * - Valor da DESPESA: "Valor pago da parcela (R$)" (o que de fato saiu).
  * - Área (só despesa): "Centro de Custo 1".
- * Agrega por categoria. Valores em módulo. Sem categoria -> "Sem categoria".
+ * Despesa: agrega por (categoria, centro de custo) — preserva o rateio de uma
+ * categoria entre vários centros. Receita: agrega por categoria.
+ * Valores em módulo. Sem categoria -> "Sem categoria".
  */
 export function parseContaAzul(
   buffer: ArrayBuffer,
@@ -82,11 +85,8 @@ export function parseContaAzul(
     };
   }
 
-  // Agrega por categoria; guarda o centro de custo dominante (por valor).
-  const acc = new Map<
-    string,
-    { categoria: string; valor: number; areas: Map<string, number> }
-  >();
+  // Despesa: uma entrada por (categoria, centro de custo). Receita: por categoria.
+  const acc = new Map<string, ItemContaAzul>();
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
@@ -94,27 +94,26 @@ export function parseContaAzul(
     const valor = Math.abs(toNumber(row[valIdx]));
     if (valor === 0) continue;
 
-    const k = normalizarTexto(categoria);
-    let entry = acc.get(k);
-    if (!entry) {
-      entry = { categoria, valor: 0, areas: new Map() };
-      acc.set(k, entry);
-    }
-    entry.valor += valor;
-
+    const categoriaNorm = normalizarTexto(categoria);
+    let area: string | null = null;
     if (tipo === "despesa" && ccIdx !== -1) {
       const cc = String(row[ccIdx] ?? "").trim();
-      if (cc) entry.areas.set(cc, (entry.areas.get(cc) ?? 0) + valor);
+      area = cc || null;
+    }
+    const chave =
+      tipo === "despesa"
+        ? `${categoriaNorm}|${normalizarTexto(area ?? "")}`
+        : categoriaNorm;
+
+    const e = acc.get(chave);
+    if (e) {
+      e.valor += valor;
+    } else {
+      acc.set(chave, { chave, categoriaNorm, categoria, valor, area });
     }
   }
 
-  const itens: ItemContaAzul[] = Array.from(acc.entries()).map(([k, e]) => {
-    let area: string | null = null;
-    if (e.areas.size > 0) {
-      area = [...e.areas.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    }
-    return { categoriaNorm: k, categoria: e.categoria, valor: e.valor, area };
-  });
+  const itens: ItemContaAzul[] = Array.from(acc.values());
 
   if (itens.length === 0) {
     return { ok: false, erro: "Nenhuma categoria com valor encontrada.", itens: [] };

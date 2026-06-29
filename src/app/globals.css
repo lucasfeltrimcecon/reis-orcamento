@@ -3,9 +3,11 @@
 :root {
   --background: #f7f9fb;
   --foreground: #0f172a;
+  --ink: #0f172a; /* títulos de seção (estava sendo usado sem definição) */
   --navy: #04274d;
   --navy-2: #063a72;
   --action: #0369a1;
+  --action-hover: #0458a0;
   --muted: #64748b;
   --border: #e2e8f0;
   --surface: #ffffff;
