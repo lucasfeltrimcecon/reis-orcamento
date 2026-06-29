@@ -11,7 +11,7 @@ export type ParseResult = {
   linhas: LinhaOrcamento[];
 };
 
-function toNumber(v: unknown): number {
+export function toNumber(v: unknown): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
   let s = String(v).trim().replace(/\s/g, "").replace(/r\$/gi, "");
