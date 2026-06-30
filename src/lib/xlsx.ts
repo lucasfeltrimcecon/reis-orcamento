@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { METRICAS_META, type CampoMeta } from "./metas";
 
 export type LinhaOrcamento = {
   area: string;
@@ -173,4 +174,84 @@ export function parseRealizadoXlsx(buffer: ArrayBuffer): ParseRealizadoResult {
   }
 
   return { ok: true, linhas };
+}
+
+export type ParseMetasResult = {
+  ok: boolean;
+  erro?: string;
+  valores: Partial<Record<CampoMeta, number[]>>; // por métrica, 12 posições Jan..Dez
+};
+
+function normalizaLabel(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Casa o texto da 1ª coluna com uma das métricas (label exato ou heurística). */
+function matchCampoMeta(texto: string): CampoMeta | null {
+  const n = normalizaLabel(texto);
+  if (!n) return null;
+  for (const m of METRICAS_META) if (normalizaLabel(m.label) === n) return m.campo;
+  if (n.includes("margem")) return "meta_margem";
+  if (n.includes("resultado")) return "meta_resultado";
+  if (n.includes("caixa") && n.includes("realiz")) return "caixa_real";
+  if (n.includes("caixa")) return "meta_caixa";
+  if (n.includes("receita")) return "meta_receita";
+  return null;
+}
+
+/**
+ * Lê um .xlsx no formato: coluna A = Métrica, colunas B..M = Jan..Dez.
+ * Primeira linha é cabeçalho. Cada métrica reconhecida vira 12 valores.
+ */
+export function parseMetasXlsx(buffer: ArrayBuffer): ParseMetasResult {
+  let rows: unknown[][];
+  try {
+    const wb = XLSX.read(buffer, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) return { ok: false, erro: "Planilha vazia.", valores: {} };
+    rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      blankrows: false,
+    });
+  } catch {
+    return {
+      ok: false,
+      erro: "Não consegui ler o arquivo (formato inválido).",
+      valores: {},
+    };
+  }
+
+  if (rows.length < 2) {
+    return {
+      ok: false,
+      erro: "A planilha precisa ter o cabeçalho e as linhas de métrica.",
+      valores: {},
+    };
+  }
+
+  const valores: Partial<Record<CampoMeta, number[]>> = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    const campo = matchCampoMeta(String(row[0] ?? ""));
+    if (!campo) continue;
+    // % é separador de exibição da margem — removido antes de converter.
+    valores[campo] = Array.from({ length: 12 }, (_, m) =>
+      toNumber(String(row[m + 1] ?? "").replace(/%/g, "")),
+    );
+  }
+
+  if (Object.keys(valores).length === 0) {
+    return {
+      ok: false,
+      erro: "Nenhuma métrica reconhecida (use a coluna Métrica do modelo).",
+      valores: {},
+    };
+  }
+
+  return { ok: true, valores };
 }
