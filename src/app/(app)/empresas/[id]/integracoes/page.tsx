@@ -5,6 +5,7 @@ import { getEmpresa } from "@/lib/supabase/queries";
 import { listConexoesEmpresa, type Conexao } from "@/lib/conta-azul/store";
 import { CA_REDIRECT_URI } from "@/lib/conta-azul/oauth";
 import { ConectarBase } from "./ConectarBase";
+import { SincronizarMes } from "./SincronizarMes";
 import { desconectarBase, reautorizar } from "./actions";
 
 export const metadata = { title: "Conta Azul · Reis" };
@@ -155,6 +156,10 @@ export default async function EmpresaContaAzulPage({
           <ConectarBase empresaId={id} redirectUri={CA_REDIRECT_URI} />
         </div>
       </section>
+
+      {bases.some((b) => b.status === "ativa") && (
+        <SincronizarMes empresaId={id} />
+      )}
     </div>
   );
 }
