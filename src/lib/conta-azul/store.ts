@@ -33,3 +33,16 @@ export async function listConexoes(): Promise<Conexao[]> {
     .order("created_at");
   return (data ?? []) as Conexao[];
 }
+
+/** Bases de UMA empresa (a tela de conexão vive dentro da empresa). */
+export async function listConexoesEmpresa(
+  empresaId: string,
+): Promise<Conexao[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conta_azul_conexao")
+    .select("id, empresa_id, apelido, conta_azul_nome, expires_at, created_at")
+    .eq("empresa_id", empresaId)
+    .order("created_at");
+  return (data ?? []) as Conexao[];
+}

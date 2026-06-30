@@ -42,12 +42,3 @@ export async function salvarApp(
   revalidatePath("/integracoes");
   return { ok: "Credenciais salvas." };
 }
-
-export async function desconectarBase(formData: FormData) {
-  await requireMaster();
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  const supabase = await createClient();
-  await supabase.from("conta_azul_conexao").delete().eq("id", id);
-  revalidatePath("/integracoes");
-}

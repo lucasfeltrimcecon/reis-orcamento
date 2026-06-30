@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
 
   const app = await getCaApp();
   if (!app) {
-    return NextResponse.redirect(new URL("/integracoes?erro=sem_app", request.url));
+    return NextResponse.redirect(
+      new URL(`/empresas/${empresaId}/integracoes?erro=sem_app`, request.url),
+    );
   }
 
   const state = Buffer.from(JSON.stringify({ empresaId, apelido })).toString(

@@ -40,9 +40,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/integracoes?erro=state", request.url));
   }
 
+  // A partir daqui já sabemos a empresa: volta sempre pra tela dela.
+  const destino = `/empresas/${empresaId}/integracoes`;
+
   const app = await getCaApp();
   if (!app) {
-    return NextResponse.redirect(new URL("/integracoes?erro=sem_app", request.url));
+    return NextResponse.redirect(new URL(`${destino}?erro=sem_app`, request.url));
   }
 
   try {
@@ -60,11 +63,11 @@ export async function GET(request: NextRequest) {
       conectado_por: user.id,
     });
     if (error) {
-      return NextResponse.redirect(new URL("/integracoes?erro=salvar", request.url));
+      return NextResponse.redirect(new URL(`${destino}?erro=salvar`, request.url));
     }
   } catch {
-    return NextResponse.redirect(new URL("/integracoes?erro=token", request.url));
+    return NextResponse.redirect(new URL(`${destino}?erro=token`, request.url));
   }
 
-  return NextResponse.redirect(new URL("/integracoes?ok=conectado", request.url));
+  return NextResponse.redirect(new URL(`${destino}?ok=conectado`, request.url));
 }
