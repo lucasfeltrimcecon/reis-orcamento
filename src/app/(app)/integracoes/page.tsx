@@ -1,23 +1,24 @@
 import Link from "next/link";
 import { requireMaster } from "@/lib/auth";
 import { listEmpresas } from "@/lib/supabase/queries";
-import { getCaApp, listConexoes } from "@/lib/conta-azul/store";
+import { listConexoes } from "@/lib/conta-azul/store";
 import { CA_REDIRECT_URI } from "@/lib/conta-azul/oauth";
-import { AppConfigForm } from "./AppConfigForm";
 
 export const metadata = { title: "Integrações · Reis" };
 
 export default async function IntegracoesPage() {
   await requireMaster();
-  const [empresas, app, conexoes] = await Promise.all([
+  const [empresas, conexoes] = await Promise.all([
     listEmpresas(),
-    getCaApp(),
     listConexoes(),
   ]);
 
   const totalPorEmpresa = new Map<string, number>();
   for (const c of conexoes) {
-    totalPorEmpresa.set(c.empresa_id, (totalPorEmpresa.get(c.empresa_id) ?? 0) + 1);
+    totalPorEmpresa.set(
+      c.empresa_id,
+      (totalPorEmpresa.get(c.empresa_id) ?? 0) + 1,
+    );
   }
 
   return (
@@ -26,37 +27,30 @@ export default async function IntegracoesPage() {
         Integrações
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Aqui ficam as credenciais do <b>app do Conta Azul</b>, que valem para
-        todas as empresas. As <b>bases</b> de cada cliente você conecta dentro da
-        empresa, em <b>Empresas › [empresa] › Conta Azul</b>.
+        Cada base do Conta Azul tem o <b>próprio</b> client_id/client_secret (do
+        app criado no Conta Azul daquele CNPJ). Conecte as bases <b>dentro de
+        cada empresa</b>, em <b>Empresas › [empresa] › Conta Azul</b>.
       </p>
 
-      {/* App config (global) */}
+      {/* URL de redirecionamento (vale pra todo app criado no portal) */}
       <section className="mt-6 rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm">
         <h2 className="text-sm font-bold text-[var(--navy)]">
-          App do Conta Azul
+          URL de redirecionamento
         </h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Credenciais do app que você criou no portal do desenvolvedor.
+          Cole esta mesma URL no portal do desenvolvedor de <b>cada</b> app que
+          você criar no Conta Azul.
         </p>
-        <AppConfigForm
-          clientId={app?.client_id ?? ""}
-          temSecret={!!app?.client_secret}
-          scope={app?.scope ?? ""}
-          redirectUri={CA_REDIRECT_URI}
-        />
+        <code className="mt-3 block overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--navy)]">
+          {CA_REDIRECT_URI}
+        </code>
       </section>
 
-      {/* Resumo: conexões por empresa (somente leitura; gerenciar é dentro da empresa) */}
+      {/* Resumo por empresa (gerenciar é dentro da empresa) */}
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-bold text-[var(--ink)]">
           Conexões por empresa
         </h2>
-        {!app && (
-          <p className="mb-3 text-xs font-semibold text-[#b8780c]">
-            Salve as credenciais do app acima para liberar a conexão das bases.
-          </p>
-        )}
         <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
           {empresas.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-[var(--muted)]">

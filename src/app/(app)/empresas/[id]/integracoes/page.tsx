@@ -2,28 +2,43 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMaster } from "@/lib/auth";
 import { getEmpresa } from "@/lib/supabase/queries";
-import { getCaApp, listConexoesEmpresa } from "@/lib/conta-azul/store";
+import { listConexoesEmpresa, type Conexao } from "@/lib/conta-azul/store";
+import { CA_REDIRECT_URI } from "@/lib/conta-azul/oauth";
 import { ConectarBase } from "./ConectarBase";
-import { desconectarBase } from "./actions";
+import { desconectarBase, reautorizar } from "./actions";
 
 export const metadata = { title: "Conta Azul · Reis" };
 
 const ERROS: Record<string, string> = {
-  sem_app: "Configure o app do Conta Azul antes de conectar (em Integrações).",
-  empresa: "Empresa não informada.",
+  dados: "Confira os campos: client_id e client_secret são obrigatórios.",
+  salvar: "Não foi possível salvar a integração.",
+  sem_credencial: "Esta base não tem credenciais salvas. Recadastre-a.",
   callback: "Retorno do Conta Azul incompleto.",
-  state: "Sessão de conexão inválida. Tente de novo.",
-  token: "Falha ao trocar o código por token. Confira o app e os scopes.",
-  salvar: "Não foi possível salvar a conexão.",
+  state: "Sessão de conexão inválida ou expirada. Conecte de novo.",
+  token: "Falha ao trocar o código por token. Confira client_id/secret e os scopes.",
 };
 
 function dataBR(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("pt-BR", {
+  return new Date(iso).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function StatusBadge({ b }: { b: Conexao }) {
+  if (b.status === "pendente") {
+    return (
+      <span className="rounded-full bg-[#fef3c7] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#b8780c]">
+        aguardando autorização
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-[#e7f6ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#15803d]">
+      ativa
+    </span>
+  );
 }
 
 export default async function EmpresaContaAzulPage({
@@ -40,10 +55,7 @@ export default async function EmpresaContaAzulPage({
   const empresa = await getEmpresa(id);
   if (!empresa) notFound();
 
-  const [app, bases] = await Promise.all([
-    getCaApp(),
-    listConexoesEmpresa(id),
-  ]);
+  const bases = await listConexoesEmpresa(id);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -58,8 +70,8 @@ export default async function EmpresaContaAzulPage({
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Conecte uma ou <b>mais bases</b> do Conta Azul desta empresa. Cada base
-        usa o login próprio do Conta Azul daquela empresa — receita e despesa são
-        puxadas automaticamente.
+        tem o <b>próprio</b> client_id/client_secret (do app criado no Conta Azul
+        daquele CNPJ) — receita e despesa são puxadas automaticamente.
       </p>
 
       {sp.erro && (
@@ -95,48 +107,52 @@ export default async function EmpresaContaAzulPage({
                 className="flex items-center justify-between gap-2 rounded-lg bg-[var(--background)] px-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-[var(--navy)]">
-                    {b.apelido}
-                    {b.conta_azul_nome ? (
-                      <span className="ml-1 font-normal text-[var(--muted)]">
-                        · {b.conta_azul_nome}
-                      </span>
-                    ) : null}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-bold text-[var(--navy)]">
+                      {b.apelido}
+                      {b.conta_azul_nome ? (
+                        <span className="ml-1 font-normal text-[var(--muted)]">
+                          · {b.conta_azul_nome}
+                        </span>
+                      ) : null}
+                    </span>
+                    <StatusBadge b={b} />
+                  </div>
                   <span className="text-[11px] font-semibold text-[var(--muted)]">
-                    conectada em {dataBR(b.created_at)}
+                    {b.status === "ativa"
+                      ? `conectada em ${dataBR(b.created_at)}`
+                      : "credenciais salvas — falta autorizar"}
                   </span>
                 </div>
-                <form action={desconectarBase}>
-                  <input type="hidden" name="id" value={b.id} />
-                  <input type="hidden" name="empresaId" value={id} />
-                  <button
-                    type="submit"
-                    className="shrink-0 text-xs font-bold text-[var(--muted)] transition hover:text-[var(--red)]"
-                  >
-                    desconectar
-                  </button>
-                </form>
+                <div className="flex shrink-0 items-center gap-3">
+                  <form action={reautorizar}>
+                    <input type="hidden" name="id" value={b.id} />
+                    <input type="hidden" name="empresaId" value={id} />
+                    <button
+                      type="submit"
+                      className="text-xs font-bold text-[var(--action)] transition hover:underline"
+                    >
+                      {b.status === "ativa" ? "Reautorizar" : "Autorizar"}
+                    </button>
+                  </form>
+                  <form action={desconectarBase}>
+                    <input type="hidden" name="id" value={b.id} />
+                    <input type="hidden" name="empresaId" value={id} />
+                    <button
+                      type="submit"
+                      className="text-xs font-bold text-[var(--muted)] transition hover:text-[var(--red)]"
+                    >
+                      desconectar
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>
         )}
 
         <div className="mt-5 border-t border-[var(--border)] pt-5">
-          {app ? (
-            <ConectarBase empresaId={id} />
-          ) : (
-            <p className="text-xs font-semibold text-[#b8780c]">
-              O app do Conta Azul ainda não foi configurado.{" "}
-              <Link
-                href="/integracoes"
-                className="font-bold text-[var(--action)] underline"
-              >
-                Configurar em Integrações
-              </Link>
-              .
-            </p>
-          )}
+          <ConectarBase empresaId={id} redirectUri={CA_REDIRECT_URI} />
         </div>
       </section>
     </div>
