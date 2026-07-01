@@ -121,9 +121,22 @@ async function buscarTipo(
   // Página 1 revela o total → busca as demais em lotes (não estoura timeout).
   const primeira = await pega(1);
   const itens: EventoCA[] = [...(primeira.itens ?? [])];
-  const total = primeira.itens_totais ?? itens.length;
-  const nPaginas = Math.min(60, Math.ceil(total / TAM));
 
+  // Sem itens_totais confiável: pagina em SÉRIE até vir uma página incompleta
+  // (não confia no tamanho da página 1, que pode estar cheia e ter mais).
+  if (primeira.itens_totais == null) {
+    let ultimo = primeira.itens ?? [];
+    let p = 2;
+    while (ultimo.length === TAM && p <= 60) {
+      const r = await pega(p);
+      ultimo = r.itens ?? [];
+      itens.push(...ultimo);
+      p++;
+    }
+    return itens;
+  }
+
+  const nPaginas = Math.min(60, Math.ceil(primeira.itens_totais / TAM));
   const restantes: number[] = [];
   for (let p = 2; p <= nPaginas; p++) restantes.push(p);
 

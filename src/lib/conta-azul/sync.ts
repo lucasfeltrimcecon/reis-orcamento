@@ -176,6 +176,17 @@ export async function sincronizarMes(
 ): Promise<SyncResumo> {
   const a = await analisarSync(empresaId, ano, mes);
 
+  // SEGURANÇA: se qualquer base falhou (token/rede), NÃO grava — senão a RPC
+  // reescreve o mês só com as bases que deram certo e apaga a contribuição da
+  // que falhou (perda silenciosa). Tudo ou nada.
+  const falhas = a.bases.filter((b) => b.erro);
+  if (falhas.length > 0) {
+    const nomes = falhas.map((f) => f.apelido).join(", ");
+    throw new Error(
+      `Não gravei nada (nada foi apagado): falha ao buscar ${nomes}. Tente sincronizar de novo.`,
+    );
+  }
+
   // categorias novas (deduplicadas) só p/ avisar — já entram com sugestão
   const vistas = new Set<string>();
   const novas: { tipo: "receita" | "despesa"; categoria: string }[] = [];

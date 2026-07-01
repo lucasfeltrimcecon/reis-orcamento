@@ -133,12 +133,12 @@ export async function getPainel(
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     const c = classeDe(r);
     if (c === "oculto") continue;
+    if (areaOculta(r)) continue; // centro de custo oculto: fora do painel INTEIRO
     if (c === "informativo") {
       if (r.tipo === "receita") receitaInfo += Number(r.valor);
       else despesaInfo += Number(r.valor);
       continue;
     }
-    if (areaOculta(r)) continue; // normal em centro oculto: fora
     if (r.tipo === "receita") faturou += Number(r.valor);
     else gastou += Number(r.valor);
   }

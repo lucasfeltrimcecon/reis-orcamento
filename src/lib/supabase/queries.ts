@@ -97,7 +97,7 @@ export async function getRealizadoResumo(
   const [{ data, error }, { data: catRows }] = await Promise.all([
     supabase
       .from("realizado")
-      .select("valor, tipo, importado_em, categoria_norm")
+      .select("valor, tipo, importado_em, categoria_norm, classe")
       .eq("empresa_id", empresaId)
       .eq("ano", ano),
     supabase
@@ -108,19 +108,28 @@ export async function getRealizadoResumo(
 
   if (error) throw new Error(error.message);
 
-  // Só categorias OCULTAS ficam fora do resumo (informativo continua no total bruto).
-  const ignorados = new Set(
-    (catRows ?? [])
-      .filter((m) => (m.classe ?? "normal") === "oculto")
-      .map((m) => `${m.tipo}:${m.categoria_norm}`),
+  // Só "normal" entra no resumo (coerente com o painel). Linha manual usa a
+  // própria classe; senão herda do mapa_categoria.
+  const classeCat = new Map(
+    (catRows ?? []).map((m) => [
+      `${m.tipo}:${m.categoria_norm}`,
+      (m.classe ?? "normal") as string,
+    ]),
   );
+  const VALIDAS = ["normal", "informativo", "oculto"];
 
   let totalReceita = 0;
   let totalDespesa = 0;
   let ultima: string | null = null;
   for (const r of data ?? []) {
-    if (r.categoria_norm && ignorados.has(`${r.tipo}:${r.categoria_norm}`))
-      continue;
+    const own = (r.classe as string | null) ?? null;
+    const eff =
+      own && VALIDAS.includes(own)
+        ? own
+        : r.categoria_norm
+          ? (classeCat.get(`${r.tipo}:${r.categoria_norm}`) ?? "normal")
+          : "normal";
+    if (eff !== "normal") continue;
     const v = Number(r.valor);
     if (r.tipo === "receita") totalReceita += v;
     else totalDespesa += v;
