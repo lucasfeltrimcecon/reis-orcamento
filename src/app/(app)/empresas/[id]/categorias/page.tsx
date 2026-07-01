@@ -11,7 +11,7 @@ type Cat = {
   tipo: "receita" | "despesa";
   categoria_norm: string;
   categoria_label: string;
-  ignorar: boolean;
+  classe: "normal" | "informativo" | "oculto";
 };
 
 export default async function CategoriasPage({
@@ -27,7 +27,7 @@ export default async function CategoriasPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("mapa_categoria")
-    .select("tipo, categoria_norm, categoria_label, ignorar")
+    .select("tipo, categoria_norm, categoria_label, classe")
     .eq("empresa_id", id)
     .order("categoria_label");
 
@@ -47,10 +47,10 @@ export default async function CategoriasPage({
         Categorias — {empresa.nome}
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Tudo que você importa fica registrado aqui. Ligue/desligue o que deve{" "}
-        <b>contar no painel</b> (faturamento, gastos e relógios). Vale para
-        receita e despesa, e fica salvo entre as importações — você não precisa
-        reimportar quando mudar de ideia.
+        Tudo que você importa fica registrado aqui. Classifique cada categoria:{" "}
+        <b>Normal</b> conta no resultado/margem; <b>Informativo</b> aparece só
+        num card à parte (não soma em nada); <b>Oculto</b> some do painel. Vale
+        para receita e despesa e fica salvo entre as importações.
       </p>
 
       {cats.length === 0 ? (

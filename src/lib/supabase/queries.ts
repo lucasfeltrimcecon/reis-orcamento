@@ -94,7 +94,7 @@ export async function getRealizadoResumo(
   ano: number,
 ): Promise<RealizadoResumo> {
   const supabase = await createClient();
-  const [{ data, error }, { data: ignRows }] = await Promise.all([
+  const [{ data, error }, { data: catRows }] = await Promise.all([
     supabase
       .from("realizado")
       .select("valor, tipo, importado_em, categoria_norm")
@@ -102,16 +102,17 @@ export async function getRealizadoResumo(
       .eq("ano", ano),
     supabase
       .from("mapa_categoria")
-      .select("tipo, categoria_norm")
-      .eq("empresa_id", empresaId)
-      .eq("ignorar", true),
+      .select("tipo, categoria_norm, classe")
+      .eq("empresa_id", empresaId),
   ]);
 
   if (error) throw new Error(error.message);
 
-  // Categorias desligadas não entram no resumo (igual ao painel).
+  // Só categorias OCULTAS ficam fora do resumo (informativo continua no total bruto).
   const ignorados = new Set(
-    (ignRows ?? []).map((m) => `${m.tipo}:${m.categoria_norm}`),
+    (catRows ?? [])
+      .filter((m) => (m.classe ?? "normal") === "oculto")
+      .map((m) => `${m.tipo}:${m.categoria_norm}`),
   );
 
   let totalReceita = 0;

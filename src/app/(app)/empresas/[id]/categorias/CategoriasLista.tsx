@@ -1,14 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { definirCategoria } from "./actions";
+import { definirClasse, type Classe } from "./actions";
 
 type Cat = {
   tipo: "receita" | "despesa";
   categoria_norm: string;
   categoria_label: string;
-  ignorar: boolean;
+  classe: Classe;
 };
+
+const OPCOES: { valor: Classe; rotulo: string; cor: string }[] = [
+  { valor: "normal", rotulo: "Normal", cor: "var(--green)" },
+  { valor: "informativo", rotulo: "Informativo", cor: "#b8780c" },
+  { valor: "oculto", rotulo: "Oculto", cor: "var(--muted)" },
+];
 
 export function CategoriasLista({
   empresaId,
@@ -36,18 +42,18 @@ function Grupo({
   empresaId: string;
   cats: Cat[];
 }) {
-  const ativas = cats.filter((c) => !c.ignorar).length;
+  const normais = cats.filter((c) => c.classe === "normal").length;
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-[var(--navy)]">{titulo}</h2>
         <span className="text-xs font-semibold text-[var(--muted)]">
-          {ativas}/{cats.length} no painel
+          {normais}/{cats.length} no painel
         </span>
       </div>
       {cats.length === 0 ? (
         <p className="mt-4 text-sm text-[var(--muted)]">
-          Nenhuma categoria ainda. Importe um arquivo do Conta Azul.
+          Nenhuma categoria ainda. Importe ou sincronize o Conta Azul.
         </p>
       ) : (
         <ul className="mt-2">
@@ -61,20 +67,21 @@ function Grupo({
 }
 
 function Linha({ empresaId, cat }: { empresaId: string; cat: Cat }) {
-  const [ativo, setAtivo] = useState(!cat.ignorar); // ativo = considerar no painel
+  const [classe, setClasse] = useState<Classe>(cat.classe);
   const [pending, start] = useTransition();
 
-  function toggle() {
-    const novo = !ativo;
-    setAtivo(novo); // otimista
+  function escolher(nova: Classe) {
+    if (nova === classe) return;
+    const anterior = classe;
+    setClasse(nova); // otimista
     start(async () => {
-      const r = await definirCategoria({
+      const r = await definirClasse({
         empresaId,
         tipo: cat.tipo,
         categoriaNorm: cat.categoria_norm,
-        ignorar: !novo,
+        classe: nova,
       });
-      if (r.erro) setAtivo(!novo); // rollback
+      if (r.erro) setClasse(anterior); // rollback
     });
   }
 
@@ -82,30 +89,33 @@ function Linha({ empresaId, cat }: { empresaId: string; cat: Cat }) {
     <li className="flex items-center justify-between gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
       <span
         className={
-          ativo
-            ? "text-sm font-semibold text-[var(--ink)]"
-            : "text-sm text-[var(--muted)] line-through"
+          classe === "oculto"
+            ? "min-w-0 truncate text-sm text-[var(--muted)] line-through"
+            : "min-w-0 truncate text-sm font-semibold text-[var(--ink)]"
         }
       >
         {cat.categoria_label}
       </span>
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={pending}
-        role="switch"
-        aria-checked={ativo}
-        aria-label={`${ativo ? "Tirar do" : "Incluir no"} painel: ${cat.categoria_label}`}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
-          ativo ? "bg-[var(--green)]" : "bg-[var(--border)]"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-            ativo ? "left-[22px]" : "left-0.5"
-          }`}
-        />
-      </button>
+      <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-[var(--border)]">
+        {OPCOES.map((o) => {
+          const on = classe === o.valor;
+          return (
+            <button
+              key={o.valor}
+              type="button"
+              onClick={() => escolher(o.valor)}
+              disabled={pending}
+              aria-pressed={on}
+              className={`px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-60 ${
+                on ? "text-white" : "bg-white text-[var(--muted)] hover:bg-[var(--background)]"
+              }`}
+              style={on ? { backgroundColor: o.cor } : undefined}
+            >
+              {o.rotulo}
+            </button>
+          );
+        })}
+      </div>
     </li>
   );
 }

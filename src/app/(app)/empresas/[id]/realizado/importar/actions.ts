@@ -82,14 +82,17 @@ export async function analisarContaAzul(
     supabase.from("areas").select("id, nome").eq("empresa_id", empresaId),
     supabase
       .from("mapa_categoria")
-      .select("tipo, categoria_norm, ignorar")
+      .select("tipo, categoria_norm, classe")
       .eq("empresa_id", empresaId),
   ]);
 
   const areaNorms = new Set((areas ?? []).map((a) => normalizarTexto(a.nome)));
   const chave = (tipo: string, cn: string) => `${tipo}:${cn}`;
   const salvos = new Map(
-    (mapa ?? []).map((m) => [chave(m.tipo, m.categoria_norm), m.ignorar as boolean]),
+    (mapa ?? []).map((m) => [
+      chave(m.tipo, m.categoria_norm),
+      (m.classe ?? "normal") as string,
+    ]),
   );
 
   const itens: PreviewItem[] = [];
@@ -101,7 +104,7 @@ export async function analisarContaAzul(
     for (const it of m.values()) {
       const salvo = salvos.get(chave(tipo, it.categoriaNorm));
       const isNew = salvo === undefined;
-      const ignorar = isNew ? sugereIgnorar(it.categoria) : salvo;
+      const ignorar = isNew ? sugereIgnorar(it.categoria) : salvo === "oculto";
       itens.push({
         tipo,
         chave: it.chave,
@@ -149,12 +152,14 @@ export async function confirmarContaAzul(payload: {
     const k = `${it.tipo}:${it.categoriaNorm}`;
     if (jaSalvas.has(k) || seen.has(k)) continue;
     seen.add(k);
+    const oculto = sugereIgnorar(it.categoria);
     novasCategorias.push({
       empresa_id: empresaId,
       tipo: it.tipo,
       categoria_norm: it.categoriaNorm,
       categoria_label: it.categoria,
-      ignorar: sugereIgnorar(it.categoria),
+      classe: oculto ? "oculto" : "normal",
+      ignorar: oculto,
     });
   }
   if (novasCategorias.length > 0) {

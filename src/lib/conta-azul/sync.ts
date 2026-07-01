@@ -21,8 +21,10 @@ export type LinhaSync = {
   valor: number;
 };
 
+export type ClasseCat = "normal" | "informativo" | "oculto";
+
 export type LinhaPreview = LinhaSync & {
-  ignorar: boolean; // fora do painel?
+  classe: ClasseCat; // normal (conta) | informativo (só card) | oculto (fora)
   isNew: boolean; // categoria nova (ainda não está em mapa_categoria)
 };
 
@@ -110,12 +112,12 @@ export async function analisarSync(
   const supabase = await createClient();
   const { data: mapaRows } = await supabase
     .from("mapa_categoria")
-    .select("tipo, categoria_norm, ignorar")
+    .select("tipo, categoria_norm, classe")
     .eq("empresa_id", empresaId);
   const mapa = new Map(
     (mapaRows ?? []).map((m) => [
       `${m.tipo}:${m.categoria_norm}`,
-      m.ignorar as boolean,
+      (m.classe ?? "normal") as ClasseCat,
     ]),
   );
 
@@ -123,16 +125,19 @@ export async function analisarSync(
     .map((l) => {
       const k = `${l.tipo}:${l.categoriaNorm}`;
       const existe = mapa.has(k);
-      const ignorar = existe
-        ? (mapa.get(k) as boolean)
-        : sugereIgnorar(l.categoria);
-      return { ...l, ignorar, isNew: !existe };
+      const classe: ClasseCat = existe
+        ? (mapa.get(k) as ClasseCat)
+        : sugereIgnorar(l.categoria)
+          ? "oculto"
+          : "normal";
+      return { ...l, classe, isNew: !existe };
     })
     .sort((a, b) => b.valor - a.valor);
 
+  // "No painel" = só normal (informativo/oculto ficam de fora dos totais).
   const soma = (tipo: string, soIncluidas: boolean) =>
     linhas
-      .filter((l) => l.tipo === tipo && (!soIncluidas || !l.ignorar))
+      .filter((l) => l.tipo === tipo && (!soIncluidas || l.classe === "normal"))
       .reduce((s, l) => s + l.valor, 0);
 
   return {
@@ -228,12 +233,14 @@ export async function salvarSync(
     const k = `${l.tipo}:${l.categoriaNorm}`;
     if (jaSalvas.has(k) || seen.has(k)) continue;
     seen.add(k);
+    const oculto = sugereIgnorar(l.categoria);
     novasCategorias.push({
       empresa_id: empresaId,
       tipo: l.tipo,
       categoria_norm: l.categoriaNorm,
       categoria_label: l.categoria,
-      ignorar: sugereIgnorar(l.categoria),
+      classe: oculto ? "oculto" : "normal",
+      ignorar: oculto,
     });
   }
   if (novasCategorias.length > 0) {

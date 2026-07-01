@@ -133,6 +133,33 @@ export default async function PainelPage({
         <Kpi label="Margem acumulada" valor={pct(d.margemAcumulada)} cor="ink" />
       </div>
 
+      {/* Informativo — aparece mas não soma no resultado/margem */}
+      {(d.informativo.receita > 0 || d.informativo.despesa > 0) && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--border)] bg-[#fbfcfe] px-5 py-3.5">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-[#b8780c]">
+            Informativo · não entra no resultado nem na margem
+          </span>
+          <div className="flex gap-8">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                Receita
+              </div>
+              <div className="text-lg font-extrabold tabular-nums text-[#15803d]">
+                {fmtBRL(d.informativo.receita)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                Despesa
+              </div>
+              <div className="text-lg font-extrabold tabular-nums text-[var(--red)]">
+                {fmtBRL(d.informativo.despesa)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Metas × Realizado */}
       {d.metas.temMetas && (
         <div className="mt-7">

@@ -35,6 +35,7 @@ export type PainelData = {
   totalOrcado: number;
   totalRealizado: number; // = gastou (despesa)
   execGeral: number | null;
+  informativo: { receita: number; despesa: number }; // não soma no resultado
   areas: GaugeArea[];
   metas: PainelMetas;
 };
@@ -64,7 +65,7 @@ export async function getPainel(
     { data: areas },
     { data: orcRows },
     { data: realRows },
-    { data: ignRows },
+    { data: classeRows },
     { data: metaRows },
   ] = await Promise.all([
     supabase
@@ -85,9 +86,8 @@ export async function getPainel(
       .eq("ano", ano),
     supabase
       .from("mapa_categoria")
-      .select("tipo, categoria_norm")
-      .eq("empresa_id", empresaId)
-      .eq("ignorar", true),
+      .select("tipo, categoria_norm, classe")
+      .eq("empresa_id", empresaId),
     supabase
       .from("metas")
       .select("mes, meta_receita, meta_resultado, meta_margem, meta_caixa, caixa_real")
@@ -98,27 +98,42 @@ export async function getPainel(
   const orc = (orcRows ?? []) as OrcRow[];
   const real = (realRows ?? []) as RealRow[];
 
-  // Categorias desligadas em "Categorias ativas" não entram no painel.
-  const ignorados = new Set(
-    (ignRows ?? []).map((m) => `${m.tipo}:${m.categoria_norm}`),
+  // Classe da categoria: normal (conta), informativo (só card), oculto (fora).
+  const classeCat = new Map<string, "normal" | "informativo" | "oculto">(
+    (classeRows ?? []).map((m) => [
+      `${m.tipo}:${m.categoria_norm}`,
+      (m.classe ?? "normal") as "normal" | "informativo" | "oculto",
+    ]),
   );
-  const ativo = (r: RealRow) =>
-    !(r.categoria_norm && ignorados.has(`${r.tipo}:${r.categoria_norm}`));
+  const classeDe = (r: RealRow): "normal" | "informativo" | "oculto" =>
+    r.categoria_norm
+      ? (classeCat.get(`${r.tipo}:${r.categoria_norm}`) ?? "normal")
+      : "normal";
 
   // Centro de custo oculto sai do painel INTEIRO (total + relógios).
   const ocultas = new Set(
     (areas ?? []).filter((a) => !a.mostrar).map((a) => a.id),
   );
-  const incluir = (r: RealRow) =>
-    ativo(r) &&
-    !(r.tipo === "despesa" && r.area_id !== null && ocultas.has(r.area_id));
+  const areaOculta = (r: RealRow) =>
+    r.tipo === "despesa" && r.area_id !== null && ocultas.has(r.area_id);
+  // Conta nos KPIs de resultado: normal + centro de custo visível.
+  const contaNormal = (r: RealRow) => classeDe(r) === "normal" && !areaOculta(r);
 
   // --- KPIs do período ---
   let faturou = 0;
   let gastou = 0;
+  let receitaInfo = 0;
+  let despesaInfo = 0;
   for (const r of real) {
-    if (!incluir(r)) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
+    const c = classeDe(r);
+    if (c === "oculto") continue;
+    if (c === "informativo") {
+      if (r.tipo === "receita") receitaInfo += Number(r.valor);
+      else despesaInfo += Number(r.valor);
+      continue;
+    }
+    if (areaOculta(r)) continue; // normal em centro oculto: fora
     if (r.tipo === "receita") faturou += Number(r.valor);
     else gastou += Number(r.valor);
   }
@@ -129,7 +144,7 @@ export async function getPainel(
   let faturouAcum = 0;
   let gastouAcum = 0;
   for (const r of real) {
-    if (!incluir(r)) continue;
+    if (!contaNormal(r)) continue;
     if (r.mes < 1 || r.mes > mesRef) continue;
     if (r.tipo === "receita") faturouAcum += Number(r.valor);
     else gastouAcum += Number(r.valor);
@@ -146,7 +161,7 @@ export async function getPainel(
 
   const realPorArea = new Map<string, number>();
   for (const r of real) {
-    if (!incluir(r)) continue;
+    if (!contaNormal(r)) continue;
     if (r.tipo !== "despesa" || !r.area_id) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     realPorArea.set(
@@ -264,6 +279,7 @@ export async function getPainel(
     totalOrcado,
     totalRealizado,
     execGeral,
+    informativo: { receita: receitaInfo, despesa: despesaInfo },
     areas: gauges,
     metas,
   };
@@ -279,7 +295,7 @@ export async function getDetalhesArea(
   modo: Modo,
 ): Promise<LinhaDetalhe[]> {
   const supabase = await createClient();
-  const [{ data }, { data: ignRows }] = await Promise.all([
+  const [{ data }, { data: catRows }] = await Promise.all([
     supabase
       .from("realizado")
       .select("descricao, valor, mes, categoria_norm")
@@ -289,20 +305,24 @@ export async function getDetalhesArea(
       .eq("tipo", "despesa"),
     supabase
       .from("mapa_categoria")
-      .select("categoria_norm")
+      .select("categoria_norm, classe")
       .eq("empresa_id", empresaId)
-      .eq("tipo", "despesa")
-      .eq("ignorar", true),
+      .eq("tipo", "despesa"),
   ]);
 
-  const ignorados = new Set((ignRows ?? []).map((m) => m.categoria_norm));
+  // Só "normal" entra no relógio → o detalhe também só mostra normal.
+  const foraNormal = new Set(
+    (catRows ?? [])
+      .filter((m) => (m.classe ?? "normal") !== "normal")
+      .map((m) => m.categoria_norm),
+  );
 
-  // Agrupa por descrição dentro do período (pula categorias desligadas)
+  // Agrupa por descrição dentro do período (pula informativo/oculto)
   const mapa = new Map<string, number>();
   for (const r of data ?? []) {
     if (!noPeriodo(r.mes as number, mesRef, modo)) continue;
     const cn = r.categoria_norm as string | null;
-    if (cn && ignorados.has(cn)) continue;
+    if (cn && foraNormal.has(cn)) continue;
     const desc = (r.descricao as string) || "(sem descrição)";
     mapa.set(desc, (mapa.get(desc) ?? 0) + Number(r.valor));
   }
