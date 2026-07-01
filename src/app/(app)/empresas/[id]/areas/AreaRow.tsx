@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type { Area } from "@/lib/types";
-import { renomearArea, removerArea } from "./actions";
+import { renomearArea, removerArea, definirMostrarArea } from "./actions";
 
 export function AreaRow({
   area,
@@ -12,6 +12,21 @@ export function AreaRow({
   empresaId: string;
 }) {
   const [editing, setEditing] = useState(false);
+  const [mostrar, setMostrar] = useState(area.mostrar);
+  const [pending, start] = useTransition();
+
+  function toggleMostrar() {
+    const novo = !mostrar;
+    setMostrar(novo); // otimista
+    start(async () => {
+      const r = await definirMostrarArea({
+        empresaId,
+        areaId: area.id,
+        mostrar: novo,
+      });
+      if (r.erro) setMostrar(!novo); // rollback
+    });
+  }
 
   return (
     <li className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-3 last:border-0 transition hover:bg-[#fafbfd]">
@@ -47,10 +62,40 @@ export function AreaRow({
         </form>
       ) : (
         <>
-          <span className="text-sm font-semibold text-[var(--foreground)]">
-            {area.nome}
-          </span>
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleMostrar}
+              disabled={pending}
+              role="switch"
+              aria-checked={mostrar}
+              aria-label={`${mostrar ? "Tirar do" : "Incluir no"} painel: ${area.nome}`}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-60 ${
+                mostrar ? "bg-[var(--green)]" : "bg-[var(--border)]"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  mostrar ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+            <span
+              className={
+                mostrar
+                  ? "truncate text-sm font-semibold text-[var(--foreground)]"
+                  : "truncate text-sm text-[var(--muted)] line-through"
+              }
+            >
+              {area.nome}
+            </span>
+            {!mostrar && (
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                fora do painel
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => setEditing(true)}

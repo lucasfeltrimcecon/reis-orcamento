@@ -63,6 +63,34 @@ export async function renomearArea(formData: FormData) {
   revalidatePath(`/empresas/${parsed.data.empresaId}/areas`);
 }
 
+const MostrarSchema = z.object({
+  empresaId: z.string().uuid(),
+  areaId: z.string().uuid(),
+  mostrar: z.boolean(),
+});
+
+/** Liga/desliga a área no painel (oculta = fora do painel inteiro). */
+export async function definirMostrarArea(payload: {
+  empresaId: string;
+  areaId: string;
+  mostrar: boolean;
+}): Promise<{ ok?: boolean; erro?: string }> {
+  await requireMaster();
+  const parsed = MostrarSchema.safeParse(payload);
+  if (!parsed.success) return { erro: "Dados inválidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("areas")
+    .update({ mostrar: parsed.data.mostrar })
+    .eq("id", parsed.data.areaId);
+  if (error) return { erro: "Falha ao salvar." };
+
+  revalidatePath(`/empresas/${parsed.data.empresaId}/areas`);
+  revalidatePath("/painel");
+  return { ok: true };
+}
+
 const RemoveSchema = z.object({
   empresaId: z.string().uuid(),
   areaId: z.string().uuid(),

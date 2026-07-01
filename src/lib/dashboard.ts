@@ -69,7 +69,7 @@ export async function getPainel(
   ] = await Promise.all([
     supabase
       .from("areas")
-      .select("id, nome, ordem")
+      .select("id, nome, ordem, mostrar")
       .eq("empresa_id", empresaId)
       .order("ordem")
       .order("nome"),
@@ -105,11 +105,19 @@ export async function getPainel(
   const ativo = (r: RealRow) =>
     !(r.categoria_norm && ignorados.has(`${r.tipo}:${r.categoria_norm}`));
 
+  // Centro de custo oculto sai do painel INTEIRO (total + relógios).
+  const ocultas = new Set(
+    (areas ?? []).filter((a) => !a.mostrar).map((a) => a.id),
+  );
+  const incluir = (r: RealRow) =>
+    ativo(r) &&
+    !(r.tipo === "despesa" && r.area_id !== null && ocultas.has(r.area_id));
+
   // --- KPIs do período ---
   let faturou = 0;
   let gastou = 0;
   for (const r of real) {
-    if (!ativo(r)) continue;
+    if (!incluir(r)) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     if (r.tipo === "receita") faturou += Number(r.valor);
     else gastou += Number(r.valor);
@@ -121,7 +129,7 @@ export async function getPainel(
   let faturouAcum = 0;
   let gastouAcum = 0;
   for (const r of real) {
-    if (!ativo(r)) continue;
+    if (!incluir(r)) continue;
     if (r.mes < 1 || r.mes > mesRef) continue;
     if (r.tipo === "receita") faturouAcum += Number(r.valor);
     else gastouAcum += Number(r.valor);
@@ -138,7 +146,7 @@ export async function getPainel(
 
   const realPorArea = new Map<string, number>();
   for (const r of real) {
-    if (!ativo(r)) continue;
+    if (!incluir(r)) continue;
     if (r.tipo !== "despesa" || !r.area_id) continue;
     if (!noPeriodo(r.mes, mesRef, modo)) continue;
     realPorArea.set(
@@ -149,6 +157,7 @@ export async function getPainel(
 
   const gauges: GaugeArea[] = [];
   for (const a of areas ?? []) {
+    if (!a.mostrar) continue; // centro de custo oculto não vira relógio
     // Orçado é guardado com o sinal que o usuário digitou (despesa = negativo).
     // No painel usamos a MAGNITUDE para comparar com o realizado (gasto).
     const orcado = Math.abs(orcPorArea.get(a.id) ?? 0);

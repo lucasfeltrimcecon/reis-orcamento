@@ -34,7 +34,8 @@ export default async function AreasPage({
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Áreas (centros de custo). Devem bater com o centro de custo do Conta
-            Azul para o realizado cruzar certo.
+            Azul para o realizado cruzar certo. Use a chave para <b>tirar do
+            painel</b> os centros que não quer ver (saem dos relógios e do total).
           </p>
         </div>
         <Link

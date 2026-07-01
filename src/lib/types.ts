@@ -11,6 +11,7 @@ export type Area = {
   empresa_id: string;
   nome: string;
   ordem: number;
+  mostrar: boolean; // aparece no painel? (false = fora do painel inteiro)
   created_at: string;
 };
 
