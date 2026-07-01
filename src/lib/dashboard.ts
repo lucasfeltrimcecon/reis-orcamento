@@ -47,6 +47,7 @@ type RealRow = {
   valor: number;
   tipo: "receita" | "despesa";
   categoria_norm: string | null;
+  classe: string | null; // override da linha (lançamento manual); null herda do mapa
 };
 
 function noPeriodo(mes: number, mesRef: number, modo: Modo): boolean {
@@ -81,7 +82,7 @@ export async function getPainel(
       .eq("ano", ano),
     supabase
       .from("realizado")
-      .select("area_id, mes, valor, tipo, categoria_norm")
+      .select("area_id, mes, valor, tipo, categoria_norm, classe")
       .eq("empresa_id", empresaId)
       .eq("ano", ano),
     supabase
@@ -105,10 +106,14 @@ export async function getPainel(
       (m.classe ?? "normal") as "normal" | "informativo" | "oculto",
     ]),
   );
-  const classeDe = (r: RealRow): "normal" | "informativo" | "oculto" =>
-    r.categoria_norm
+  const classeDe = (r: RealRow): "normal" | "informativo" | "oculto" => {
+    // Lançamento manual carrega a própria classe; senão herda do mapa_categoria.
+    if (r.classe === "normal" || r.classe === "informativo" || r.classe === "oculto")
+      return r.classe;
+    return r.categoria_norm
       ? (classeCat.get(`${r.tipo}:${r.categoria_norm}`) ?? "normal")
       : "normal";
+  };
 
   // Centro de custo oculto sai do painel INTEIRO (total + relógios).
   const ocultas = new Set(
@@ -298,7 +303,7 @@ export async function getDetalhesArea(
   const [{ data }, { data: catRows }] = await Promise.all([
     supabase
       .from("realizado")
-      .select("descricao, valor, mes, categoria_norm")
+      .select("descricao, valor, mes, categoria_norm, classe")
       .eq("empresa_id", empresaId)
       .eq("area_id", areaId)
       .eq("ano", ano)
@@ -322,7 +327,9 @@ export async function getDetalhesArea(
   for (const r of data ?? []) {
     if (!noPeriodo(r.mes as number, mesRef, modo)) continue;
     const cn = r.categoria_norm as string | null;
-    if (cn && foraNormal.has(cn)) continue;
+    const own = r.classe as string | null;
+    const eff = own ?? (cn && foraNormal.has(cn) ? "oculto" : "normal");
+    if (eff !== "normal") continue; // só normal entra no detalhe do relógio
     const desc = (r.descricao as string) || "(sem descrição)";
     mapa.set(desc, (mapa.get(desc) ?? 0) + Number(r.valor));
   }

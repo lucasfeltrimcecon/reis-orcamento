@@ -52,6 +52,12 @@ export default async function RealizadoPage({
             Categorias
           </Link>
           <Link
+            href={`/empresas/${id}/lancamentos`}
+            className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-bold text-[var(--action)] transition hover:border-[var(--action)]"
+          >
+            Lançamentos
+          </Link>
+          <Link
             href={`/empresas/${id}/realizado/importar?ano=${ano}`}
             className="rounded-xl bg-[var(--action)] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#0458a0] active:scale-[0.98]"
           >
