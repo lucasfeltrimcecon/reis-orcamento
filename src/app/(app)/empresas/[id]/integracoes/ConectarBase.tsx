@@ -27,7 +27,7 @@ export function ConectarBase({
   redirectUri: string;
 }) {
   return (
-    <form action={criarConexao}>
+    <form action={criarConexao} autoComplete="off">
       <input type="hidden" name="empresaId" value={empresaId} />
       <p className="mb-3 text-xs font-bold text-[var(--foreground)]">
         Nova integração — cole as credenciais do app criado no Conta Azul{" "}
@@ -54,6 +54,7 @@ export function ConectarBase({
             name="client_id"
             type="text"
             required
+            autoComplete="off"
             placeholder="cole o client_id desta CA"
             className={inputCls}
           />
