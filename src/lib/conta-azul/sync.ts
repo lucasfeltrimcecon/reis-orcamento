@@ -147,6 +147,64 @@ export async function analisarSync(
   };
 }
 
+export type SyncResumo = {
+  ano: number;
+  mes: number;
+  bases: BaseResumo[];
+  totalReceita: number; // no painel (exclui ignoradas)
+  totalDespesa: number;
+  totalReceitaBruto: number;
+  totalDespesaBruto: number;
+  qtd: number; // linhas gravadas
+  novas: { tipo: "receita" | "despesa"; categoria: string }[]; // categorias novas
+};
+
+/**
+ * Sincroniza um mês de uma vez: puxa das bases, aplica Categorias ativas
+ * (persistidas) e grava direto no realizado. Sem gate de confirmação — a
+ * curadoria é a tela de Categorias ativas.
+ */
+export async function sincronizarMes(
+  empresaId: string,
+  ano: number,
+  mes: number,
+): Promise<SyncResumo> {
+  const a = await analisarSync(empresaId, ano, mes);
+
+  // categorias novas (deduplicadas) só p/ avisar — já entram com sugestão
+  const vistas = new Set<string>();
+  const novas: { tipo: "receita" | "despesa"; categoria: string }[] = [];
+  for (const l of a.linhas) {
+    if (!l.isNew) continue;
+    const k = `${l.tipo}:${l.categoriaNorm}`;
+    if (vistas.has(k)) continue;
+    vistas.add(k);
+    novas.push({ tipo: l.tipo, categoria: l.categoria });
+  }
+
+  const linhas: LinhaSync[] = a.linhas.map((l) => ({
+    tipo: l.tipo,
+    categoria: l.categoria,
+    categoriaNorm: l.categoriaNorm,
+    area: l.area,
+    valor: l.valor,
+  }));
+  const r = await salvarSync(empresaId, ano, mes, linhas);
+  if (!r.ok) throw new Error(r.erro ?? "Falha ao gravar no realizado.");
+
+  return {
+    ano,
+    mes,
+    bases: a.bases,
+    totalReceita: a.totalReceita,
+    totalDespesa: a.totalDespesa,
+    totalReceitaBruto: a.totalReceitaBruto,
+    totalDespesaBruto: a.totalDespesaBruto,
+    qtd: r.qtd ?? 0,
+    novas,
+  };
+}
+
 /** Grava no realizado (mesmo caminho do import: categorias/áreas + RPC). */
 export async function salvarSync(
   empresaId: string,
